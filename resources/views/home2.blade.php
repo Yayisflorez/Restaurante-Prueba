@@ -7,6 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
     <link rel="stylesheet" href="{{ asset('css/home2.css') }}">
 </head>
 <body>
@@ -63,7 +65,20 @@
                 </button>
                 <h1>Bienvenido, <span class="user-name">{{ Auth::user()->name }}</span></h1>
             </div>
-            <div class="header-right">
+            <div class="header-right" style="display: flex; align-items: center; gap: 20px;">
+                <div id="header-order-buttons" style="display: flex; gap: 10px; transition: opacity 0.3s;">
+                    <button class="btn-primary" style="padding: 0.5rem 1rem;" id="btn-con-reserva" onclick="abrirModalSeleccionPedido('con_reserva')">Con Reserva</button>
+                    <button class="btn-secondary" style="padding: 0.5rem 1rem; border: 1px solid var(--primary); color: var(--primary); background: transparent; border-radius: 8px; cursor: pointer;" id="btn-sin-reserva" onclick="abrirModalSeleccionPedido('sin_reserva')">Sin Reserva</button>
+                    
+                    <button class="btn-primary" style="padding: 0.5rem 1rem; background: #e74c3c; display: none;" id="btn-fin-reserva" onclick="finalizarSesionPedido()">Finalizar Reserva</button>
+                    <button class="btn-primary" style="padding: 0.5rem 1rem; background: #e67e22; display: none;" id="btn-fin-servicio" onclick="finalizarSesionPedido()">Finalizar Servicio</button>
+                </div>
+                
+                <div id="info-mesa-pedido-header" style="display: none; align-items: center; gap: 10px; background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.3); padding: 0.4rem 1rem; border-radius: 20px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    <span id="info-mesa-texto" style="color: var(--primary); font-weight: 600; font-size: 0.9rem;"></span>
+                </div>
+
                 <div class="user-avatar">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
@@ -92,7 +107,14 @@
                                 <h3>{{ $plato->nombre }}</h3>
                                 <p>{{ $plato->descripcion }}</p>
                                 <span class="price">${{ number_format($plato->precio, 2) }}</span>
-                                <button class="btn btn-primary add-to-cart-btn" style="margin-top: 10px; width: 100%;">Agregar al carrito</button>
+                                <button
+                                    class="btn btn-primary add-to-cart-btn"
+                                    style="margin-top: 10px; width: 100%;"
+                                    data-plato-id="{{ $plato->id }}"
+                                    data-plato-nombre="{{ $plato->nombre }}"
+                                    data-plato-precio="{{ $plato->precio }}"
+                                    onclick="irAPedidos(this)"
+                                >Hacer Pedido</button>
                             </div>
                         </div>
                     @endforeach
@@ -106,131 +128,121 @@
                 <h2 class="section-title">Reservar Mesa</h2>
             </div>
             <div class="form-container">
-                <form id="reservaForm" class="styled-form">
+                <form id="reservaForm" class="styled-form" onsubmit="event.preventDefault(); confirmarReserva()">
                     <div class="form-row">
                         <div class="form-group">
                             <label for="fecha">Fecha</label>
-                            <input type="date" id="fecha" class="form-control">
+                            <input type="date" id="fecha" name="fecha" class="form-control" required>
                         </div>
                         <div class="form-group">
                             <label for="hora">Hora</label>
-                            <input type="time" id="hora" class="form-control">
+                            <input type="time" id="hora" name="hora" class="form-control" required>
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="personas">Número de Personas</label>
-                            <select id="personas" class="form-control">
-                                <option value="">Seleccione...</option>
-                                <option value="1">1 persona</option>
-                                <option value="2">2 personas</option>
-                                <option value="3">3 personas</option>
-                                <option value="4">4 personas</option>
-                                <option value="5">5 personas</option>
-                                <option value="6">6+ personas</option>
-                            </select>
+                            <div class="quantity-control" style="justify-content: center;">
+                                <button type="button" class="qty-btn" onclick="let input = document.getElementById('personas_input'); if(input.value > 1) input.value--">−</button>
+                                <input type="number" id="personas_input" name="personas" value="1" min="1" max="20" style="width: 50px; text-align: center; border: none; background: transparent; color: white; font-size: 1.1rem;" readonly>
+                                <button type="button" class="qty-btn" onclick="let input = document.getElementById('personas_input'); if(input.value < 20) input.value++">+</button>
+                            </div>
                         </div>
                         <div class="form-group">
-                            <label for="zona">Zona</label>
-                            <select id="zona" class="form-control">
-                                <option value="">Seleccione...</option>
-                                <option value="interior">Interior</option>
-                                <option value="terraza">Terraza</option>
-                                <option value="privado">Salón Privado</option>
-                            </select>
+                            <label for="mesa">Mesa (1-20)</label>
+                            <input type="number" id="mesa" name="mesa" class="form-control" min="1" max="20" required placeholder="Ej: 5">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Zona</label>
+                        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                            <label style="flex: 1; min-width: 120px; border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.3s;" class="zona-radio-label">
+                                <input type="radio" name="zona" value="interior" required style="display: none;">
+                                <span>Interior</span>
+                            </label>
+                            <label style="flex: 1; min-width: 120px; border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.3s;" class="zona-radio-label">
+                                <input type="radio" name="zona" value="terraza" required style="display: none;">
+                                <span>Terraza</span>
+                            </label>
+                            <label style="flex: 1; min-width: 120px; border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.3s;" class="zona-radio-label">
+                                <input type="radio" name="zona" value="privado" required style="display: none;">
+                                <span>Salón Privado</span>
+                            </label>
                         </div>
                     </div>
                     <div class="form-group">
                         <label for="notas">Notas adicionales</label>
-                        <textarea id="notas" class="form-control" rows="3" placeholder="Celebración especial, alergias, etc."></textarea>
+                        <textarea id="notas" name="notas" class="form-control" rows="3" placeholder="Celebración especial, alergias, etc."></textarea>
                     </div>
                     
-                    <div class="preorder-section" style="margin-top: 2rem;">
-                        <h3 style="margin-bottom: 1rem; color: var(--primary);">Pre-ordenar Platos (Opcional)</h3>
-                        <div class="preorder-grid">
-                            @foreach ($categorias as $categoria)
-                                @foreach ($categoria->platos as $plato)
-                                    <div class="preorder-item">
-                                        <div class="preorder-info">
-                                            <h4>{{ $plato->nombre }}</h4>
-                                            <span style="color: var(--primary);">${{ number_format($plato->precio, 2) }}</span>
-                                        </div>
-                                        <div class="quantity-control">
-                                            <button type="button" class="qty-btn minus">−</button>
-                                            <span class="qty-value">0</span>
-                                            <button type="button" class="qty-btn plus">+</button>
-                                        </div>
-                                    </div>
-                                @endforeach
-                            @endforeach
-                        </div>
-                    </div>
-                    <button type="submit" class="btn-primary" style="margin-top: 2rem;">Confirmar Reserva</button>
+                    <button type="submit" class="btn-primary" style="margin-top: 2rem; width: 100%;">Confirmar Reserva</button>
                 </form>
             </div>
         </section>
 
         <!-- Sección Hacer Pedidos -->
-        <section class="content-section hidden" id="pedidos">
+        <section class="content-section hidden" id="pedidos" style="position: relative;">
             <div class="section-header">
                 <h2 class="section-title">Hacer Pedidos</h2>
             </div>
-            <div class="pedidos-container">
-                <div class="pedido-card">
-                    <img src="https://images.unsplash.com/photo-1550547660-d9450f859349?w=300&q=80" alt="Hamburguesa">
-                    <div class="pedido-info">
-                        <h3>Hamburguesa Clásica</h3>
-                        <p class="pedido-price">$14.00</p>
-                        <div class="quantity-control">
-                            <button class="qty-btn">−</button>
-                            <span class="qty-value">0</span>
-                            <button class="qty-btn">+</button>
-                        </div>
+
+            <!-- Vista Normal de Pedidos (Bloqueada hasta autenticar) -->
+            <div id="vista-pedidos-normal" style="opacity: 0.4; pointer-events: none; display: flex; gap: 2rem; transition: opacity 0.3s ease; filter: blur(3px);">
+                <!-- Lista de Platos -->
+                <div style="flex: 2; display: flex; flex-direction: column; height: calc(100vh - 200px);">
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <input type="text" id="buscar_plato" class="form-control premium-search" placeholder="Buscar plato por nombre..." onkeyup="filtrarPlatosPedido()">
+                    </div>
+                    <div class="menu-categories hide-scrollbar" style="margin-bottom: 1.5rem; justify-content: flex-start; overflow-x: auto; white-space: nowrap; padding-bottom: 5px;">
+                        <button class="menu-cat-btn active" data-pedidos-cat="all" onclick="filtrarCatPedido('all', this)">Todos</button>
+                        @foreach ($categorias as $categoria)
+                            <button class="menu-cat-btn" data-pedidos-cat="{{ $categoria->id }}" onclick="filtrarCatPedido('{{ $categoria->id }}', this)">{{ $categoria->nombre }}</button>
+                        @endforeach
+                    </div>
+                    <div class="pedidos-container hide-scrollbar" id="contenedor-platos-pedido" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; overflow-y: auto; padding-right: 10px; flex-grow: 1;">
+                        @foreach ($categorias as $categoria)
+                            @foreach ($categoria->platos as $plato)
+                                <div class="pedido-card plato-para-pedir" data-cat="{{ $categoria->id }}" data-nombre="{{ strtolower($plato->nombre) }}" style="flex-direction: column; text-align: center; padding: 1rem; align-items: center; justify-content: space-between;">
+                                    <img src="{{ $plato->imagen ?? 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=400&q=80' }}" alt="{{ $plato->nombre }}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-bottom: 0.5rem;">
+                                    <h4 style="margin-bottom: 0.5rem; font-size: 1rem;">{{ $plato->nombre }}</h4>
+                                    <p style="color: var(--primary); font-weight: bold; font-size: 1.1rem; margin-bottom: 0.5rem;">${{ number_format($plato->precio, 2) }}</p>
+                                    <button class="btn-primary add-to-cart-btn" style="padding: 0.5rem; width: 100%; margin-top: auto;" onclick="agregarAlCarrito({{ $plato->id }}, '{{ addslashes($plato->nombre) }}', {{ $plato->precio }})">Añadir al Pedido</button>
+                                </div>
+                            @endforeach
+                        @endforeach
                     </div>
                 </div>
-                <div class="pedido-card">
-                    <img src="https://images.unsplash.com/photo-1544025162-811114215b3e?w=300&q=80" alt="Asado">
-                    <div class="pedido-info">
-                        <h3>Asado de Tira</h3>
-                        <p class="pedido-price">$32.00</p>
-                        <div class="quantity-control">
-                            <button class="qty-btn">−</button>
-                            <span class="qty-value">0</span>
-                            <button class="qty-btn">+</button>
+
+                <!-- Carrito Premium -->
+                <div class="carrito-panel">
+                    <div class="carrito-header">
+                        <h3>Tu Pedido</h3>
+                    </div>
+                    
+                    <div id="carrito-items" class="carrito-items hide-scrollbar">
+                        <div id="carrito-vacio" class="carrito-vacio">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem; color: rgba(255,255,255,0.2);"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
+                            <p>El carrito está vacío</p>
+                            <p style="font-size: 0.8rem; margin-top: 0.5rem;">Añade platos para comenzar</p>
                         </div>
                     </div>
-                </div>
-                <div class="pedido-card">
-                    <img src="https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=300&q=80" alt="Risotto">
-                    <div class="pedido-info">
-                        <h3>Risotto del Mar</h3>
-                        <p class="pedido-price">$28.00</p>
-                        <div class="quantity-control">
-                            <button class="qty-btn">−</button>
-                            <span class="qty-value">0</span>
-                            <button class="qty-btn">+</button>
+                    
+                    <div class="carrito-footer">
+                        <div class="form-group" style="margin-bottom: 1rem;">
+                            <label style="font-size: 0.85rem;">Método de Pago</label>
+                            <select id="metodo_pago_pedido" class="form-control" style="padding: 0.5rem; font-size: 0.9rem;">
+                                @foreach ($metodos_pago ?? [] as $metodo)
+                                    <option value="{{ $metodo->id }}">{{ $metodo->nombre }}</option>
+                                @endforeach
+                            </select>
                         </div>
+                        <div class="cart-total">
+                            <span>Total:</span>
+                            <span id="carrito-total-precio" style="color: var(--primary); font-size: 1.5rem;">$0.00</span>
+                        </div>
+                        <button class="btn-primary btn-confirmar-pedido" onclick="confirmarPedidoBD()" id="btn-confirmar-pedido" disabled>Confirmar Pedido</button>
                     </div>
                 </div>
-                <div class="pedido-card">
-                    <img src="https://images.unsplash.com/photo-1624353365286-3f8d62daad51?w=300&q=80" alt="Postre">
-                    <div class="pedido-info">
-                        <h3>Volcán de Cacao</h3>
-                        <p class="pedido-price">$10.00</p>
-                        <div class="quantity-control">
-                            <button class="qty-btn">−</button>
-                            <span class="qty-value">0</span>
-                            <button class="qty-btn">+</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="cart-summary">
-                <div class="cart-total">
-                    <span>Total:</span>
-                    <span class="total-price">$0.00</span>
-                </div>
-                <button class="btn-primary">Confirmar Pedido</button>
             </div>
         </section>
 
@@ -370,7 +382,32 @@
             </div>
         </section>
 
-        <!-- Modales de Edición -->
+        <!-- Modales de Edición y Confirmación -->
+        <div class="modal-overlay hidden" id="modal-reserva-confirmacion">
+            <div class="modal-content" style="text-align: center; max-width: 400px;">
+                <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(212,175,55,0.2); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                </div>
+                <h3 class="modal-title" style="margin-bottom: 0.5rem;">Reserva Confirmada</h3>
+                <p style="color: #aaa; margin-bottom: 1.5rem;">Tu reserva ha sido registrada exitosamente.</p>
+                
+                <div style="background: var(--bg-dark); padding: 1.5rem; border-radius: 8px; border: 1px dashed var(--primary); margin-bottom: 1.5rem; text-align: left;">
+                    <p style="margin-bottom: 0.5rem;"><strong>Fecha:</strong> <span id="conf-fecha"></span></p>
+                    <p style="margin-bottom: 0.5rem;"><strong>Hora:</strong> <span id="conf-hora"></span></p>
+                    <p style="margin-bottom: 0.5rem;"><strong>Personas:</strong> <span id="conf-personas"></span></p>
+                    <p style="margin-bottom: 0.5rem;"><strong>Mesa:</strong> <span id="conf-mesa"></span></p>
+                    <p style="margin-bottom: 0.5rem;"><strong>Zona:</strong> <span id="conf-zona" style="text-transform: capitalize;"></span></p>
+                    <div style="margin-top: 1rem; text-align: center;">
+                        <p style="font-size: 0.9rem; color: #aaa; margin-bottom: 0.3rem;">Código de Referencia:</p>
+                        <p id="conf-codigo" style="font-size: 1.5rem; font-weight: bold; color: var(--primary); letter-spacing: 2px; margin: 0;"></p>
+                    </div>
+                </div>
+                
+                <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 1.5rem;">Guarda este código para realizar pedidos desde tu mesa o en la sección "Con Reserva".</p>
+                <button type="button" class="btn-primary" style="width: 100%;" onclick="closeModal('modal-reserva-confirmacion')">Aceptar y Cerrar</button>
+            </div>
+        </div>
+
         <div class="modal-overlay hidden" id="modal-reserva">
             <div class="modal-content">
                 <button class="close-modal" onclick="closeModal('modal-reserva')">&times;</button>
@@ -409,10 +446,66 @@
                 </div>
                 <button type="button" class="btn-primary" onclick="closeModal('modal-pedido')" style="margin-top: 1rem;">Actualizar Cantidades</button>
             </div>
+        <div class="modal-overlay hidden" id="modal-seleccion-pedido" style="background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px);">
+            <div class="modal-content" style="max-width: 600px; padding: 3rem;">
+                <h3 class="modal-title" style="text-align: center; font-size: 1.8rem; margin-bottom: 2rem;">¿Cómo deseas hacer tu pedido?</h3>
+                
+                <!-- Botones Iniciales -->
+                <div id="modal-seleccion-botones" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div class="dashboard-card" style="text-align: center; border-color: var(--primary);" onclick="mostrarFormularioPedido('con_reserva')">
+                        <div class="card-icon" style="margin: 0 auto 1rem;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+                        <h3>Con Reserva</h3>
+                        <p style="font-size: 0.85rem;">Ya tengo una mesa reservada y código de confirmación.</p>
+                    </div>
+                    <div class="dashboard-card" style="text-align: center;" onclick="mostrarFormularioPedido('sin_reserva')">
+                        <div class="card-icon" style="margin: 0 auto 1rem;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div>
+                        <h3>Sin Reserva</h3>
+                        <p style="font-size: 0.85rem;">Estoy en el local y quiero pedir directamente.</p>
+                    </div>
+                </div>
+
+                <!-- Formulario Con Reserva -->
+                <div id="modal-form-con-reserva" style="display: none;">
+                    <button class="back-btn" style="margin-bottom: 1.5rem;" onclick="volverSeleccionPedido()">← Volver</button>
+                    <p style="color: #aaa; margin-bottom: 1.5rem; text-align: center;">Ingresa los datos de tu reserva para continuar.</p>
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label>Mesa Asignada</label>
+                        <input type="number" id="auth_mesa" class="form-control" style="font-size: 1.2rem; padding: 1rem;" min="1" max="20" placeholder="Ej: 5">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label>Código de Referencia</label>
+                        <input type="text" id="auth_codigo" class="form-control" style="font-size: 1.2rem; padding: 1rem; letter-spacing: 2px; text-transform: uppercase;" placeholder="Ej: A1B2C3D4">
+                    </div>
+                    <button class="btn-primary" style="width: 100%; font-size: 1.1rem; padding: 1rem;" onclick="verificarReserva()">Validar y Continuar</button>
+                    <p id="auth-error" style="color: #e74c3c; margin-top: 1rem; font-size: 0.9rem; text-align: center; display: none;"></p>
+                </div>
+
+                <!-- Formulario Sin Reserva -->
+                <div id="modal-form-sin-reserva" style="display: none;">
+                    <button class="back-btn" style="margin-bottom: 1.5rem;" onclick="volverSeleccionPedido()">← Volver</button>
+                    <p style="color: #aaa; margin-bottom: 1.5rem; text-align: center;">Selecciona la mesa donde te encuentras.</p>
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label>Mesa actual</label>
+                        <input type="number" id="temp_mesa" class="form-control" style="font-size: 1.2rem; padding: 1rem;" min="1" max="20" placeholder="Ej: 5">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label>Zona</label>
+                        <select id="temp_zona" class="form-control" style="font-size: 1.2rem; padding: 1rem;">
+                            <option value="interior">Interior</option>
+                            <option value="terraza">Terraza</option>
+                            <option value="privado">Salón Privado</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary" style="width: 100%; font-size: 1.1rem; padding: 1rem;" onclick="continuarSinReserva()">Iniciar Pedido</button>
+                    <p id="temp-error" style="color: #e74c3c; margin-top: 1rem; font-size: 0.9rem; text-align: center; display: none;"></p>
+                </div>
+            </div>
         </div>
 
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
     <script src="{{ asset('js/ScriptHome2.js') }}"></script>
 </body>
 </html>

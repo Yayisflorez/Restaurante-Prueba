@@ -26,6 +26,7 @@ class HomeController extends Controller
     public function home2()
     {
         $categorias = \App\Models\Categoria::with('platos')->get();
-        return view('home2', compact('categorias'));
+        $metodos_pago = \App\Models\MetodoPago::where('activo', true)->get();
+        return view('home2', compact('categorias', 'metodos_pago'));
     }
 }
