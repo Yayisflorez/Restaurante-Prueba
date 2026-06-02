@@ -16,6 +16,11 @@ use App\Http\Controllers\PedidoController;
 Route::middleware(['auth'])->group(function () {
     Route::get('/home2', [HomeController::class, 'home2'])->name('home2');
     Route::post('/reservas', [ReservaController::class, 'store'])->name('reservas.store');
+    Route::post('/reservas/disponibilidad', [ReservaController::class, 'verificarDisponibilidad'])->name('reservas.disponibilidad');
     Route::post('/pedidos/verificar', [PedidoController::class, 'verificarReserva'])->name('pedidos.verificar');
+    Route::post('/pedidos/disponibilidad-tiempo-real', [PedidoController::class, 'verificarDisponibilidadTiempoReal'])->name('pedidos.disponibilidad-tiempo-real');
     Route::post('/pedidos', [PedidoController::class, 'store'])->name('pedidos.store');
+    Route::get('/historial', [HomeController::class, 'historial'])->name('historial');
+    Route::get('/historial/pedidos', [PedidoController::class, 'historial'])->name('historial.pedidos');
+    Route::get('/historial/reservas', [ReservaController::class, 'historial'])->name('historial.reservas');
 });
