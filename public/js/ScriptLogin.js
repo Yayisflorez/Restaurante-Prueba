@@ -38,6 +38,8 @@ document.addEventListener('DOMContentLoaded', function() {
       
       if (!valid) {
         e.preventDefault();
+      } else {
+        if (typeof mostrarCarga === 'function') mostrarCarga('Iniciando sesión...'); else Swal.fire({ title: 'Iniciando sesión...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
       }
     });
   }

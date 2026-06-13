@@ -60,6 +60,8 @@
     </div>
 
     <!-- Script de Validaciones -->
-    <script src="{{ asset('js/ScriptLogin.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{{ asset('js/loader.js') }}?v={{ time() }}"></script>
+    <script src="{{ asset('js/ScriptLogin.js') }}?v={{ time() }}"></script>
 </body>
 </html>

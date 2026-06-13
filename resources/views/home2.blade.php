@@ -51,7 +51,7 @@
             <form action="{{ route('logout') }}" method="POST" id="logout-form" style="display: none;">
                 @csrf
             </form>
-            <a href="#" class="nav-item logout-btn" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+            <a href="#" class="nav-item logout-btn" onclick="event.preventDefault(); mostrarCargaUsuario();">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 <span>Cerrar Sesión</span>
             </a>
@@ -168,7 +168,7 @@
                                     <button type="button" class="time-adjust-btn time-up" data-unit="hour">
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
                                     </button>
-                                    <div class="time-value" id="hour-display">12</div>
+                                    <input type="number" class="time-value" id="hour-display" value="12" min="1" max="12" style="background:transparent; border:none; outline:none; width:4rem; padding:0; margin:0; -moz-appearance:textfield;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                                     <button type="button" class="time-adjust-btn time-down" data-unit="hour">
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                                     </button>
@@ -178,7 +178,7 @@
                                     <button type="button" class="time-adjust-btn time-up" data-unit="minute">
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
                                     </button>
-                                    <div class="time-value" id="minute-display">00</div>
+                                    <input type="number" class="time-value" id="minute-display" value="00" min="0" max="59" style="background:transparent; border:none; outline:none; width:4rem; padding:0; margin:0; -moz-appearance:textfield;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                                     <button type="button" class="time-adjust-btn time-down" data-unit="minute">
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                                     </button>
@@ -282,14 +282,19 @@
                     <div class="pedidos-grid-container" id="contenedor-platos-pedido">
                         @foreach ($categorias as $categoria)
                             @foreach ($categoria->platos as $plato)
-                                <div class="pedido-card-modern plato-para-pedir" data-cat="{{ $categoria->id }}" data-nombre="{{ strtolower($plato->nombre) }}">
+                                <div class="pedido-card-modern plato-para-pedir {{ $plato->estado === 'agotado' ? 'agotado' : '' }}" data-cat="{{ $categoria->id }}" data-nombre="{{ strtolower($plato->nombre) }}" style="{{ $plato->estado === 'agotado' ? 'opacity: 0.5; pointer-events: none; position: relative;' : 'position: relative;' }}">
+                                    @if($plato->estado === 'agotado')
+                                        <div class="tag-agotado-float" style="position: absolute; top: 10px; right: 10px; background: #e74c3c; color: #fff; font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 4px; z-index: 5;">AGOTADO</div>
+                                    @elseif($plato->estado === 'disponible')
+                                        <div class="tag-disponible-float" style="position: absolute; top: 10px; right: 10px; background: rgba(46,204,113,0.2); color: #2ecc71; font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 4px; z-index: 5;">Disponible</div>
+                                    @endif
                                     <div class="img-wrapper">
                                         <img src="{{ $plato->imagen ?? 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=400&q=80' }}" alt="{{ $plato->nombre }}">
                                     </div>
                                     <div class="card-content">
                                         <h4>{{ $plato->nombre }}</h4>
                                         <p class="price">${{ number_format($plato->precio, 2) }}</p>
-                                        <button class="btn-add-modern" onclick="agregarAlCarrito({{ $plato->id }}, '{{ addslashes($plato->nombre) }}', {{ $plato->precio }})" title="Añadir al carrito">
+                                        <button class="btn-add-modern" onclick="agregarAlCarrito({{ $plato->id }}, '{{ addslashes($plato->nombre) }}', {{ $plato->precio }})" title="Añadir al carrito" {{ $plato->estado === 'agotado' ? 'disabled' : '' }}>
                                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                                         </button>
                                     </div>
@@ -362,9 +367,21 @@
                         </div>
                         <div class="form-group">
                             <label>Código de Referencia</label>
-                            <input type="text" id="auth_codigo" class="form-control" placeholder="Ej: A1B2C3D4">
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <input type="text" id="auth_codigo" class="form-control" placeholder="Ej: A1B2C3D4" style="flex: 1;">
+                                <button type="button" onclick="pegarReferencia()" title="Pegar referencia del portapapeles" style="background: rgba(194,149,69,0.15); border: 1px solid var(--primary); color: var(--primary); border-radius: 8px; padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; white-space: nowrap; display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                                    Pegar
+                                </button>
+                            </div>
                         </div>
                         <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="verificarReserva()">Verificar Reserva</button>
+                        <p style="text-align: center; margin-top: 1rem; font-size: 0.88rem; color: #aaa;">
+                            ¿No tienes reserva? 
+                            <a href="#reservar" onclick="event.preventDefault(); showSection('reservar')" style="color: var(--primary); text-decoration: none; font-weight: 600; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                                Haz una reserva aquí
+                            </a>
+                        </p>
                         <p id="auth-error" style="color: #e74c3c; margin-top: 1rem; font-size: 0.9rem; display: none; text-align: center;"></p>
                     </div>
 
@@ -419,8 +436,27 @@
             <div class="section-header">
                 <h2 class="section-title">Mi Historial</h2>
             </div>
+            <div class="filter-buttons" style="display: flex; gap: 1rem; margin-bottom: 1.5rem; justify-content: space-between; align-items: center;">
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn-primary filter-btn active" onclick="cargarHistorial('todos')" data-filter="todos">Todos</button>
+                    <button class="btn-primary filter-btn" onclick="cargarHistorial('reservas')" data-filter="reservas">Reservas</button>
+                    <button class="btn-primary filter-btn" onclick="cargarHistorial('pedidos')" data-filter="pedidos">Pedidos</button>
+                </div>
+                <div id="historial-right-button">
+                    <button class="btn-secondary" onclick="descargarHistorialExcel()" style="display: flex; align-items: center; gap: 0.5rem; border: 1px solid #27ae60; color: #27ae60; background: transparent; border-radius: 8px; padding: 0.5rem 1rem; cursor: pointer; transition: background 0.3s;" onmouseover="this.style.background='rgba(39, 174, 96, 0.1)'" onmouseout="this.style.background='transparent'">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        Descargar Excel
+                    </button>
+                </div>
+            </div>
             <div class="table-container">
-                <table class="styled-table">
+                <div id="historial-loading" style="text-align: center; padding: 2rem; display: none;">
+                    <p>Cargando historial...</p>
+                </div>
+                <div id="historial-vacio" style="text-align: center; padding: 2rem; display: none;">
+                    <p id="historial-vacio-mensaje" style="color: #aaa; font-size: 1.1rem;"></p>
+                </div>
+                <table class="styled-table" id="historial-table">
                     <thead>
                         <tr>
                             <th>#</th>
@@ -431,52 +467,8 @@
                             <th>Acciones</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr>
-                            <td>001</td>
-                            <td><span class="badge badge-pedido">Pedido</span></td>
-                            <td>Hamburguesa Clásica x2, Mojito x1</td>
-                            <td>20/05/2026</td>
-                            <td><span class="status status-completado">Completado</span></td>
-                            <td class="action-cell">
-                                <button class="action-btn edit-btn" onclick="openModal('modal-pedido')" title="Editar Pedido">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                </button>
-                                <button class="action-btn download-btn" onclick="downloadPDF()" title="Descargar Comprobante">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>002</td>
-                            <td><span class="badge badge-reserva">Reserva</span></td>
-                            <td>Mesa para 4 - Terraza</td>
-                            <td>18/05/2026</td>
-                            <td><span class="status status-completado">Completado</span></td>
-                            <td class="action-cell">
-                                <button class="action-btn edit-btn" onclick="openModal('modal-reserva')" title="Editar Reserva">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                </button>
-                                <button class="action-btn download-btn" onclick="downloadPDF()" title="Descargar Comprobante">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>003</td>
-                            <td><span class="badge badge-pedido">Pedido</span></td>
-                            <td>Asado de Tira x1, Risotto x1</td>
-                            <td>15/05/2026</td>
-                            <td><span class="status status-pendiente">Pendiente</span></td>
-                            <td class="action-cell">
-                                <button class="action-btn edit-btn" onclick="openModal('modal-pedido')" title="Editar Pedido">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                </button>
-                                <button class="action-btn download-btn" onclick="downloadPDF()" title="Descargar Comprobante">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                </button>
-                            </td>
-                        </tr>
+                    <tbody id="historial-body">
+                        <!-- Los datos se cargarán dinámicamente desde la base de datos -->
                     </tbody>
                 </table>
             </div>
@@ -520,7 +512,7 @@
                 <button class="back-btn" onclick="showSection('perfil')">← Volver a Perfil</button>
             </div>
             <div class="form-container">
-                <form class="styled-form">
+                <form class="styled-form" id="form-editar-perfil" onsubmit="event.preventDefault(); guardarPerfil()">
                     <div class="form-row">
                         <div class="form-group">
                             <label for="edit-name">Nombre</label>
@@ -567,7 +559,13 @@
                     <p style="margin-bottom: 0.5rem;"><strong>Zona:</strong> <span id="conf-zona" style="text-transform: capitalize;"></span></p>
                     <div style="margin-top: 1rem; text-align: center;">
                         <p style="font-size: 0.9rem; color: #aaa; margin-bottom: 0.3rem;">Código de Referencia:</p>
-                        <p id="conf-codigo" style="font-size: 1.5rem; font-weight: bold; color: var(--primary); letter-spacing: 2px; margin: 0;"></p>
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 0.75rem;">
+                            <p id="conf-codigo" style="font-size: 1.5rem; font-weight: bold; color: var(--primary); letter-spacing: 2px; margin: 0;"></p>
+                            <button type="button" id="btn-copiar-referencia" onclick="copiarReferencia()" title="Copiar referencia" style="background: rgba(194,149,69,0.15); border: 1px solid var(--primary); color: var(--primary); border-radius: 8px; padding: 0.45rem 0.75rem; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; display: flex; align-items: center; gap: 0.4rem;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                                Copiar
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
@@ -576,43 +574,82 @@
             </div>
         </div>
 
-        <div class="modal-overlay hidden" id="modal-reserva">
-            <div class="modal-content">
-                <button class="close-modal" onclick="closeModal('modal-reserva')">&times;</button>
+        <div class="modal-overlay hidden" id="modal-editar-reserva">
+            <div class="modal-content" style="max-width: 600px;">
+                <button class="close-modal" onclick="closeModal('modal-editar-reserva')">&times;</button>
                 <h3 class="modal-title">Editar Reserva</h3>
-                <form class="styled-form">
+                <form class="styled-form" id="form-editar-reserva">
+                    <input type="hidden" id="edit-reserva-id">
                     <div class="form-row">
                         <div class="form-group">
                             <label>Fecha</label>
-                            <input type="date" class="form-control" value="2026-05-18">
+                            <input type="date" id="edit-reserva-fecha" class="form-control" required>
                         </div>
                         <div class="form-group">
                             <label>Hora</label>
-                            <input type="time" class="form-control" value="19:30">
+                            <input type="time" id="edit-reserva-hora" class="form-control" required>
                         </div>
                     </div>
-                    <button type="button" class="btn-primary" onclick="closeModal('modal-reserva')">Guardar Cambios</button>
+                    <div class="form-group">
+                        <label>Zona</label>
+                        <div style="display: flex; gap: 1rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="radio" name="edit-reserva-zona" value="interior" required> Interior
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="radio" name="edit-reserva-zona" value="terraza"> Terraza
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="radio" name="edit-reserva-zona" value="privado"> Privado
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Personas</label>
+                        <input type="number" id="edit-reserva-personas" class="form-control" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Mesas</label>
+                        <div id="edit-mesa-selector-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 0.5rem; margin-top: 0.5rem;"></div>
+                        <input type="hidden" id="edit-reserva-mesas" name="mesas">
+                        <p id="edit-mesas-seleccionadas-info" style="color: #aaa; font-size: 0.9rem; margin-top: 0.5rem;">0 mesas seleccionadas</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Notas (opcional)</label>
+                        <textarea id="edit-reserva-notas" class="form-control" rows="2"></textarea>
+                    </div>
+                    <button type="button" class="btn-primary" onclick="guardarEdicionReserva()">Guardar Cambios</button>
                 </form>
             </div>
         </div>
 
-        <div class="modal-overlay hidden" id="modal-pedido">
-            <div class="modal-content">
-                <button class="close-modal" onclick="closeModal('modal-pedido')">&times;</button>
+        <div class="modal-overlay hidden" id="modal-editar-pedido">
+            <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+                <button class="close-modal" onclick="closeModal('modal-editar-pedido')">&times;</button>
                 <h3 class="modal-title">Editar Pedido</h3>
-                <div class="pedidos-container" style="display: block; max-height: 250px; overflow-y: auto;">
-                    <div class="pedido-card" style="margin-bottom: 1rem; background: var(--bg-dark);">
-                        <div class="pedido-info">
-                            <h3>Hamburguesa Clásica</h3>
-                            <div class="quantity-control">
-                                <button type="button" class="qty-btn minus">−</button>
-                                <span class="qty-value">2</span>
-                                <button type="button" class="qty-btn plus">+</button>
-                            </div>
+                <input type="hidden" id="edit-pedido-id">
+                
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; color: #aaa; font-size: 0.9rem;">Selecciona del menú:</label>
+                        <div class="pedidos-grid-container" id="edit-pedido-platos-grid" style="max-height: 250px; overflow-y: auto; padding: 0.5rem; background: rgba(0,0,0,0.3); border-radius: 12px;">
+                            <!-- Los platos se cargarán dinámicamente -->
                         </div>
                     </div>
                 </div>
-                <button type="button" class="btn-primary" onclick="closeModal('modal-pedido')" style="margin-top: 1rem;">Actualizar Cantidades</button>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; color: #aaa; font-size: 0.9rem;">Platos en tu pedido:</label>
+                    <div class="pedidos-container" id="edit-pedido-detalles" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; max-height: 400px; overflow-y: auto; padding: 0.5rem;">
+                        <!-- Los detalles se cargarán dinámicamente -->
+                    </div>
+                </div>
+                
+                <div style="background: var(--bg-dark); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                    <p style="margin: 0; font-size: 1.1rem;"><strong>Total:</strong></p>
+                    <p style="margin: 0; font-size: 1.3rem; color: var(--primary);"><strong>$<span id="edit-pedido-total">0.00</span></strong></p>
+                </div>
+                <button type="button" class="btn-primary" style="width: 100%; padding: 1rem; font-size: 1.1rem; border-radius: 12px;" onclick="guardarEdicionPedido()">Guardar Cambios</button>
             </div>
         </div>
 
@@ -621,6 +658,7 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="{{ asset('js/ScriptHome2.js') }}"></script>
+    <script src="{{ asset('js/loader.js') }}?v={{ time() }}"></script>
+    <script src="{{ asset('js/ScriptHome2.js') }}?v={{ time() }}"></script>
 </body>
 </html>

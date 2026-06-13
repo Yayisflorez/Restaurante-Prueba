@@ -108,8 +108,8 @@ document.addEventListener('DOMContentLoaded', function() {
         let period = 'PM';
 
         function updateTimeDisplay() {
-            hourDisplay.textContent = String(hour).padStart(2, '0');
-            minuteDisplay.textContent = String(minute).padStart(2, '0');
+            hourDisplay.value = String(hour).padStart(2, '0');
+            minuteDisplay.value = String(minute).padStart(2, '0');
             
             // Convertir a formato 24h para el input
             let hour24 = hour;
@@ -132,6 +132,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateTimeDisplay();
                 
                 // Recargar mesas si hay zona seleccionada
+                const zonaSeleccionada = document.querySelector('input[name="zona"]:checked');
+                if (zonaSeleccionada) {
+                    cargarMesasPorZona(zonaSeleccionada.value);
+                }
+            });
+        });
+
+        // Event listeners for manual input typing
+        [hourDisplay, minuteDisplay].forEach(input => {
+            input.addEventListener('change', () => {
+                let h = parseInt(hourDisplay.value) || 12;
+                let m = parseInt(minuteDisplay.value) || 0;
+                
+                if (h < 1) h = 12;
+                if (h > 12) h = 1;
+                if (m < 0) m = 59;
+                if (m > 59) m = 0;
+                
+                hour = h;
+                minute = m;
+                updateTimeDisplay();
+                
                 const zonaSeleccionada = document.querySelector('input[name="zona"]:checked');
                 if (zonaSeleccionada) {
                     cargarMesasPorZona(zonaSeleccionada.value);
@@ -208,12 +230,24 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     window.seleccionarMesa = function(mesa, button) {
+        // Verificar si la mesa está ocupada (no disponible)
+        if (button.classList.contains('mesa-no-disponible')) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Mesa ocupada',
+                text: 'Esta mesa ya está reservada u ocupada. Por favor selecciona otra mesa.',
+                background: '#1a1a1a',
+                color: '#fff'
+            });
+            return;
+        }
+
         const mesaInput = document.getElementById('mesas');
         const mesaBtns = document.querySelectorAll('.mesa-btn');
-        
+
         // Toggle selección múltiple
         button.classList.toggle('selected');
-        
+
         // Obtener todas las mesas seleccionadas
         const mesasSeleccionadas = [];
         mesaBtns.forEach(btn => {
@@ -221,10 +255,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 mesasSeleccionadas.push(btn.textContent);
             }
         });
-        
+
         // Actualizar input hidden con array de mesas
         mesaInput.value = JSON.stringify(mesasSeleccionadas);
-        
+
         // Actualizar información de capacidad
         actualizarInfoMesas(mesasSeleccionadas);
     };
@@ -397,28 +431,50 @@ document.addEventListener('DOMContentLoaded', function() {
             data.mesas = JSON.parse(data.mesas);
             if (!Array.isArray(data.mesas) || data.mesas.length === 0) {
                 console.error('Array de mesas vacío');
-                Swal.fire({ 
-                    icon: 'warning', 
-                    title: 'Mesas no seleccionadas', 
-                    text: 'Por favor seleccione al menos una mesa.', 
-                    background: '#1a1a1a', 
-                    color: '#fff' 
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Mesas no seleccionadas',
+                    text: 'Por favor seleccione al menos una mesa.',
+                    background: '#1a1a1a',
+                    color: '#fff'
+                });
+                return;
+            }
+
+            // Validar que ninguna de las mesas seleccionadas esté ocupada
+            const mesaBtns = document.querySelectorAll('.mesa-btn');
+            const mesasOcupadas = [];
+            data.mesas.forEach(mesa => {
+                const btn = Array.from(mesaBtns).find(b => b.textContent === String(mesa));
+                if (btn && btn.classList.contains('mesa-no-disponible')) {
+                    mesasOcupadas.push(mesa);
+                }
+            });
+
+            if (mesasOcupadas.length > 0) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Mesas ocupadas',
+                    text: `Las mesas ${mesasOcupadas.join(', ')} están ocupadas. Por favor selecciona otras mesas.`,
+                    background: '#1a1a1a',
+                    color: '#fff'
                 });
                 return;
             }
         } catch (e) {
             console.error('Error al parsear mesas:', e, 'Valor:', data.mesas);
-            Swal.fire({ 
-                icon: 'error', 
-                title: 'Error en mesas', 
-                text: 'Error al procesar las mesas seleccionadas. Por favor seleccione las mesas nuevamente.', 
-                background: '#1a1a1a', 
-                color: '#fff' 
+            Swal.fire({
+                icon: 'error',
+                title: 'Error en mesas',
+                text: 'Error al procesar las mesas seleccionadas. Por favor seleccione las mesas nuevamente.',
+                background: '#1a1a1a',
+                color: '#fff'
             });
             return;
         }
 
-        // Validar horario del restaurante (8:00 AM - 10:00 PM)
+        // Validar horario del restaurante (8:00 AM - 10:00 PM) - DESACTIVADO PARA PRUEBAS
+        /*
         const horaReserva = parseInt(data.hora.split(':')[0]);
         const minutosReserva = parseInt(data.hora.split(':')[1]);
         const horaTotalReserva = horaReserva + (minutosReserva / 60);
@@ -449,6 +505,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             return;
         }
+        */
 
         const token = document.querySelector('input[name="_token"]')?.value || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
@@ -526,6 +583,11 @@ document.addEventListener('DOMContentLoaded', function() {
         sections.forEach(sec => sec.classList.add('hidden'));
         const targetSection = document.getElementById(sectionId);
         if (targetSection) targetSection.classList.remove('hidden');
+        
+        // Cargar historial cuando se muestra la sección de historial
+        if (sectionId === 'historial') {
+            cargarHistorial('todos');
+        }
 
         navItems.forEach(item => {
             item.classList.remove('active');
@@ -590,40 +652,799 @@ document.addEventListener('DOMContentLoaded', function() {
         if (modal) modal.classList.add('hidden');
     };
 
-    // --- LOGICA RESERVAS ---
-    window.confirmarReserva = function() {
-        const form = document.getElementById('reservaForm');
-        const formData = new FormData(form);
-        const data = Object.fromEntries(formData.entries());
+    // --- LÓGICA HISTORIAL ---
+    window.descargarHistorialExcel = function() {
+        const filtroActivo = document.querySelector('.filter-btn.active')?.dataset.filter || 'todos';
+        window.location.href = `/historial/exportar?filtro=${filtroActivo}`;
+    };
+
+    // --- COPIAR / PEGAR REFERENCIA ---
+    window.copiarReferencia = function() {
+        const codigo = document.getElementById('conf-codigo')?.textContent?.trim();
+        if (!codigo) return;
+        navigator.clipboard.writeText(codigo).then(() => {
+            const btn = document.getElementById('btn-copiar-referencia');
+            if (btn) {
+                const original = btn.innerHTML;
+                btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ¡Copiado!';
+                btn.style.background = 'rgba(46,204,113,0.2)';
+                btn.style.borderColor = '#2ecc71';
+                btn.style.color = '#2ecc71';
+                setTimeout(() => {
+                    btn.innerHTML = original;
+                    btn.style.background = '';
+                    btn.style.borderColor = '';
+                    btn.style.color = '';
+                }, 2000);
+            }
+            // Guardar en sessionStorage para pegar luego
+            sessionStorage.setItem('referenciaCopiada', codigo);
+        }).catch(() => {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo copiar al portapapeles.', background: '#1a1a1a', color: '#fff' });
+        });
+    };
+
+    window.pegarReferencia = function() {
+        const input = document.getElementById('auth_codigo');
+        if (!input) return;
+        // Intentar primero desde portapapeles
+        if (navigator.clipboard && navigator.clipboard.readText) {
+            navigator.clipboard.readText().then(text => {
+                if (text && text.trim()) {
+                    input.value = text.trim();
+                    input.style.borderColor = 'var(--primary)';
+                    setTimeout(() => input.style.borderColor = '', 1500);
+                } else {
+                    pegarDesdeSession(input);
+                }
+            }).catch(() => pegarDesdeSession(input));
+        } else {
+            pegarDesdeSession(input);
+        }
+    };
+
+    function pegarDesdeSession(input) {
+        const guardada = sessionStorage.getItem('referenciaCopiada');
+        if (guardada) {
+            input.value = guardada;
+            input.style.borderColor = 'var(--primary)';
+            setTimeout(() => input.style.borderColor = '', 1500);
+        } else {
+            Swal.fire({ icon: 'info', title: 'Portapapeles vacío', text: 'No hay referencia copiada. Primero copia la referencia desde el ticket de tu reserva.', background: '#1a1a1a', color: '#fff' });
+        }
+    }
+
+    // --- LOGOUT CON PANTALLA DE CARGA ---
+    window.mostrarCargaUsuario = function() {
+        mostrarCarga('Cerrando sesión...');
+        setTimeout(() => {
+            document.getElementById('logout-form').submit();
+        }, 900);
+    };
+
+    window.guardarPerfil = function() {
+        const nombre = document.getElementById('edit-name').value;
+        const apellido = document.getElementById('edit-lastname').value;
+        const telefono = document.getElementById('edit-phone').value;
+        const correo = document.getElementById('edit-email').value;
+        const password = document.getElementById('edit-password').value;
+
+        if (!nombre || !apellido || !correo) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Campos incompletos',
+                text: 'El nombre, apellido y correo son obligatorios.',
+                background: '#1a1a1a',
+                color: '#fff'
+            });
+            return;
+        }
 
         const token = document.querySelector('input[name="_token"]')?.value || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-        fetch('/reservas', {
-            method: 'POST',
+        fetch('/perfil/actualizar', {
+            method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': token
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify({
+                name: nombre,
+                lastname: apellido,
+                telefono: telefono,
+                email: correo,
+                password: password
+            })
         })
         .then(res => res.json())
         .then(data => {
-            if(data.success) {
-                document.getElementById('conf-fecha').textContent = data.reserva.fecha;
-                document.getElementById('conf-hora').textContent = data.reserva.hora;
-                document.getElementById('conf-personas').textContent = data.reserva.personas;
-                document.getElementById('conf-mesa').textContent = data.reserva.mesa;
-                document.getElementById('conf-zona').textContent = data.reserva.zona;
-                document.getElementById('conf-codigo').textContent = data.reserva.codigo_referencia;
-                openModal('modal-reserva-confirmacion');
-                form.reset();
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Perfil actualizado!',
+                    text: data.message,
+                    background: '#1a1a1a',
+                    color: '#fff'
+                }).then(() => {
+                    window.location.reload(); // Recargar para mostrar los nuevos datos
+                });
             } else {
-                Swal.fire({ icon: 'error', title: 'Error', text: 'Error al crear reserva: ' + (data.message || ''), background: '#1a1a1a', color: '#fff' });
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message || 'No se pudo actualizar el perfil.',
+                    background: '#1a1a1a',
+                    color: '#fff'
+                });
             }
         })
         .catch(err => {
-            console.error(err);
-            Swal.fire({ icon: 'error', title: 'Error', text: 'Error de conexión al guardar reserva.', background: '#1a1a1a', color: '#fff' });
+            console.error('Error al actualizar perfil:', err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error de conexión al actualizar el perfil',
+                background: '#1a1a1a',
+                color: '#fff'
+            });
+        });
+    };
+
+    window.descargarPDF = function(tipo, id) {
+        if (tipo === 'reserva') {
+            window.location.href = `/reservas/${id}/pdf`;
+        } else if (tipo === 'pedido') {
+            window.location.href = `/pedidos/${id}/pdf`;
+        }
+    };
+
+    window.eliminarItem = function(tipo, id) {
+        Swal.fire({
+            icon: 'warning',
+            title: '¿Estás seguro?',
+            text: `¿Deseas eliminar este ${tipo}? Esta acción no se puede deshacer.`,
+            background: '#1a1a1a',
+            color: '#fff',
+            showCancelButton: true,
+            confirmButtonColor: '#e74c3c',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const token = document.querySelector('input[name="_token"]')?.value || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const url = tipo === 'reserva' ? `/reservas/${id}` : `/pedidos/${id}`;
+
+                fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Eliminado',
+                            text: data.message,
+                            background: '#1a1a1a',
+                            color: '#fff'
+                        });
+                        // Recargar historial
+                        cargarHistorial('todos');
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: data.message || 'Error al eliminar',
+                            background: '#1a1a1a',
+                            color: '#fff'
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error('Error al eliminar:', err);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Error de conexión al eliminar',
+                        background: '#1a1a1a',
+                        color: '#fff'
+                    });
+                });
+            }
+        });
+    };
+
+    window.modificarItem = function(tipo, id) {
+        if (tipo === 'reserva') {
+            cargarReservaParaEditar(id);
+        } else if (tipo === 'pedido') {
+            cargarPedidoParaEditar(id);
+        }
+    };
+
+    let editPedidoDetalles = [];
+
+    function cargarReservaParaEditar(id) {
+        const token = document.querySelector('input[name="_token"]')?.value || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+        fetch(`/reservas/${id}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const reserva = data.reserva;
+                document.getElementById('edit-reserva-id').value = reserva.id;
+                document.getElementById('edit-reserva-fecha').value = reserva.fecha;
+                document.getElementById('edit-reserva-hora').value = reserva.hora;
+                document.getElementById('edit-reserva-personas').value = reserva.personas;
+                document.getElementById('edit-reserva-notas').value = reserva.notas || '';
+
+                // Seleccionar zona
+                const zonaRadio = document.querySelector(`input[name="edit-reserva-zona"][value="${reserva.zona}"]`);
+                if (zonaRadio) zonaRadio.checked = true;
+
+                // Cargar mesas de la zona
+                cargarMesasParaEditar(reserva.zona, reserva.mesas);
+
+                openModal('modal-editar-reserva');
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message || 'Error al cargar la reserva',
+                    background: '#1a1a1a',
+                    color: '#fff'
+                });
+            }
+        })
+        .catch(err => {
+            console.error('Error al cargar reserva:', err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error de conexión al cargar la reserva',
+                background: '#1a1a1a',
+                color: '#fff'
+            });
+        });
+    }
+
+    function cargarMesasParaEditar(zona, mesasSeleccionadas) {
+        const mesaGrid = document.getElementById('edit-mesa-selector-grid');
+        const zonasMesas = {
+            'interior': range(1, 10),
+            'terraza': range(11, 20),
+            'privado': range(21, 30)
+        };
+        const mesasZona = zonasMesas[zona] || range(1, 10);
+
+        mesaGrid.innerHTML = '';
+
+        mesasZona.forEach(mesa => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'mesa-btn';
+            btn.textContent = mesa;
+
+            if (mesasSeleccionadas.includes(String(mesa))) {
+                btn.classList.add('selected');
+            }
+
+            btn.onclick = function() { seleccionarMesaEditar(mesa, this); };
+            mesaGrid.appendChild(btn);
+        });
+
+        actualizarInfoMesasEditar(mesasSeleccionadas);
+    }
+
+    function seleccionarMesaEditar(mesa, button) {
+        const mesaInput = document.getElementById('edit-reserva-mesas');
+        const mesaBtns = document.querySelectorAll('#edit-mesa-selector-grid .mesa-btn');
+
+        button.classList.toggle('selected');
+
+        const mesasSeleccionadas = [];
+        mesaBtns.forEach(btn => {
+            if (btn.classList.contains('selected')) {
+                mesasSeleccionadas.push(btn.textContent);
+            }
+        });
+
+        mesaInput.value = JSON.stringify(mesasSeleccionadas);
+        actualizarInfoMesasEditar(mesasSeleccionadas);
+    }
+
+    function actualizarInfoMesasEditar(mesasSeleccionadas) {
+        const info = document.getElementById('edit-mesas-seleccionadas-info');
+        info.textContent = `${mesasSeleccionadas.length} mesas seleccionadas`;
+    }
+
+    window.guardarEdicionReserva = function() {
+        const id = document.getElementById('edit-reserva-id').value;
+        const fecha = document.getElementById('edit-reserva-fecha').value;
+        const hora = document.getElementById('edit-reserva-hora').value;
+        const personas = document.getElementById('edit-reserva-personas').value;
+        const zona = document.querySelector('input[name="edit-reserva-zona"]:checked')?.value;
+        const mesasInput = document.getElementById('edit-reserva-mesas').value;
+        const notas = document.getElementById('edit-reserva-notas').value;
+
+        if (!fecha || !hora || !personas || !zona || !mesasInput) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Campos incompletos',
+                text: 'Por favor complete todos los campos requeridos.',
+                background: '#1a1a1a',
+                color: '#fff'
+            });
+            return;
+        }
+
+        try {
+            const mesas = JSON.parse(mesasInput);
+            if (!Array.isArray(mesas) || mesas.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Mesas no seleccionadas',
+                    text: 'Por favor seleccione al menos una mesa.',
+                    background: '#1a1a1a',
+                    color: '#fff'
+                });
+                return;
+            }
+
+            const token = document.querySelector('input[name="_token"]')?.value || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            fetch(`/reservas/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token
+                },
+                body: JSON.stringify({
+                    fecha: fecha,
+                    hora: hora,
+                    zona: zona,
+                    personas: parseInt(personas),
+                    mesas: mesas,
+                    notas: notas
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Actualizado',
+                        text: data.message,
+                        background: '#1a1a1a',
+                        color: '#fff'
+                    });
+                    closeModal('modal-editar-reserva');
+                    cargarHistorial('todos');
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'Error al actualizar la reserva',
+                        background: '#1a1a1a',
+                        color: '#fff'
+                    });
+                }
+            })
+            .catch(err => {
+                console.error('Error al actualizar reserva:', err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Error de conexión al actualizar la reserva',
+                    background: '#1a1a1a',
+                    color: '#fff'
+                });
+            });
+        } catch (e) {
+            console.error('Error al parsear mesas:', e);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error al procesar las mesas seleccionadas.',
+                background: '#1a1a1a',
+                color: '#fff'
+            });
+        }
+    };
+
+    function cargarPedidoParaEditar(id) {
+        const token = document.querySelector('input[name="_token"]')?.value || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+        // Cargar platos disponibles primero
+        cargarPlatosDisponibles();
+
+        fetch(`/pedidos/${id}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token
+            }
+        })
+        .then(res => {
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (data.success) {
+                const pedido = data.pedido;
+                document.getElementById('edit-pedido-id').value = pedido.id;
+                
+                // Asegurar que los detalles tengan la imagen del plato
+                editPedidoDetalles = pedido.detalles.map(detalle => ({
+                    ...detalle,
+                    plato_imagen: detalle.plato_imagen || detalle.imagen || 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=400&q=80',
+                    plato_precio: parseFloat(detalle.plato_precio || detalle.precio || 0),
+                    subtotal: parseFloat(detalle.subtotal || 0)
+                }));
+
+                renderizarDetallesPedidoEditar();
+                actualizarTotalPedidoEditar();
+
+                openModal('modal-editar-pedido');
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message || 'Error al cargar el pedido',
+                    background: '#1a1a1a',
+                    color: '#fff'
+                });
+            }
+        })
+        .catch(err => {
+            console.error('Error al cargar pedido:', err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error de conexión al cargar el pedido: ' + err.message,
+                background: '#1a1a1a',
+                color: '#fff'
+            });
+        });
+    }
+
+    function cargarPlatosDisponibles() {
+        const token = document.querySelector('input[name="_token"]')?.value || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const grid = document.getElementById('edit-pedido-platos-grid');
+
+        fetch('/platos', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token
+            }
+        })
+        .then(res => {
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (data.success && data.platos) {
+                // Cargar grid visual
+                if (grid) {
+                    grid.innerHTML = '';
+                    data.platos.forEach(plato => {
+                        const div = document.createElement('div');
+                        div.className = 'pedido-card-modern';
+                        div.innerHTML = `
+                            <div class="img-wrapper">
+                                <img src="${plato.imagen || 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=400&q=80'}" alt="${plato.nombre}">
+                            </div>
+                            <div class="card-content">
+                                <h4>${plato.nombre}</h4>
+                                <p class="price">$${parseFloat(plato.precio).toFixed(2)}</p>
+                                <button class="btn-add-modern" onclick="agregarPlatoAPedidoDesdeGrid(${plato.id}, '${plato.nombre.replace(/'/g, "\\'")}', ${plato.precio}, '${plato.imagen || 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=400&q=80'}')" title="Añadir al pedido">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                </button>
+                            </div>
+                        `;
+                        grid.appendChild(div);
+                    });
+                }
+            } else {
+                console.error('Error en respuesta:', data);
+            }
+        })
+        .catch(err => {
+            console.error('Error al cargar platos:', err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error al cargar los platos disponibles',
+                background: '#1a1a1a',
+                color: '#fff'
+            });
+        });
+    }
+
+    window.agregarPlatoAPedido = function() {
+        const select = document.getElementById('edit-pedido-plato-select');
+        const platoId = select.value;
+
+        if (!platoId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Selecciona un plato',
+                text: 'Por favor selecciona un plato del menú.',
+                background: '#1a1a1a',
+                color: '#fff'
+            });
+            return;
+        }
+
+        const option = select.options[select.selectedIndex];
+        const precio = parseFloat(option.dataset.precio);
+        const nombre = option.dataset.nombre;
+        const imagen = option.dataset.imagen || 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=400&q=80';
+
+        // Verificar si el plato ya existe en el pedido
+        const existe = editPedidoDetalles.find(d => d.plato_id == platoId);
+        if (existe) {
+            existe.cantidad += 1;
+            existe.subtotal = existe.cantidad * precio;
+        } else {
+            editPedidoDetalles.push({
+                plato_id: parseInt(platoId),
+                plato_nombre: nombre,
+                plato_precio: precio,
+                plato_imagen: imagen,
+                cantidad: 1,
+                subtotal: precio
+            });
+        }
+
+        renderizarDetallesPedidoEditar();
+        actualizarTotalPedidoEditar();
+        select.value = '';
+    };
+
+    window.agregarPlatoAPedidoDesdeGrid = function(platoId, nombre, precio, imagen) {
+        // Verificar si el plato ya existe en el pedido
+        const existe = editPedidoDetalles.find(d => d.plato_id == platoId);
+        if (existe) {
+            existe.cantidad += 1;
+            existe.subtotal = existe.cantidad * precio;
+        } else {
+            editPedidoDetalles.push({
+                plato_id: parseInt(platoId),
+                plato_nombre: nombre,
+                plato_precio: parseFloat(precio),
+                plato_imagen: imagen,
+                cantidad: 1,
+                subtotal: parseFloat(precio)
+            });
+        }
+
+        renderizarDetallesPedidoEditar();
+        actualizarTotalPedidoEditar();
+    };
+
+    function renderizarDetallesPedidoEditar() {
+        const container = document.getElementById('edit-pedido-detalles');
+        container.innerHTML = '';
+
+        editPedidoDetalles.forEach((detalle, index) => {
+            const div = document.createElement('div');
+            div.className = 'pedido-card-modern';
+            div.innerHTML = `
+                <div class="img-wrapper">
+                    <img src="${detalle.plato_imagen || 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=400&q=80'}" alt="${detalle.plato_nombre}">
+                </div>
+                <div class="card-content">
+                    <h4>${detalle.plato_nombre}</h4>
+                    <p class="price">$${parseFloat(detalle.plato_precio).toFixed(2)}</p>
+                    <div class="quantity-control" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+                        <button type="button" class="qty-btn minus" onclick="cambiarCantidadDetalle(${index}, -1)" style="padding: 0.3rem 0.6rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 4px; cursor: pointer;">−</button>
+                        <span class="qty-value" style="font-weight: bold;">${detalle.cantidad}</span>
+                        <button type="button" class="qty-btn plus" onclick="cambiarCantidadDetalle(${index}, 1)" style="padding: 0.3rem 0.6rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 4px; cursor: pointer;">+</button>
+                    </div>
+                    <p style="margin: 0.5rem 0 0; color: var(--primary); font-weight: bold;">Subtotal: $${parseFloat(detalle.subtotal).toFixed(2)}</p>
+                    <button type="button" onclick="eliminarDetalle(${index})" style="margin-top: 0.5rem; width: 100%; background: #e74c3c; border: none; color: white; padding: 0.5rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">Eliminar</button>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    window.cambiarCantidadDetalle = function(index, cambio) {
+        const detalle = editPedidoDetalles[index];
+        detalle.cantidad += cambio;
+        if (detalle.cantidad < 1) detalle.cantidad = 1;
+        detalle.subtotal = detalle.plato_precio * detalle.cantidad;
+
+        renderizarDetallesPedidoEditar();
+        actualizarTotalPedidoEditar();
+    };
+
+    window.eliminarDetalle = function(index) {
+        editPedidoDetalles.splice(index, 1);
+        renderizarDetallesPedidoEditar();
+        actualizarTotalPedidoEditar();
+    };
+
+    function actualizarTotalPedidoEditar() {
+        const total = editPedidoDetalles.reduce((sum, detalle) => sum + parseFloat(detalle.subtotal || 0), 0);
+        document.getElementById('edit-pedido-total').textContent = total.toFixed(2);
+    }
+
+    window.guardarEdicionPedido = function() {
+        if (editPedidoDetalles.length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Pedido vacío',
+                text: 'El pedido debe tener al menos un plato.',
+                background: '#1a1a1a',
+                color: '#fff'
+            });
+            return;
+        }
+
+        const id = document.getElementById('edit-pedido-id').value;
+        const token = document.querySelector('input[name="_token"]')?.value || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+        const detalles = editPedidoDetalles.map(d => ({
+            plato_id: d.plato_id,
+            cantidad: d.cantidad
+        }));
+
+        fetch(`/pedidos/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': token
+            },
+            body: JSON.stringify({
+                detalles: detalles
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Actualizado',
+                    text: data.message,
+                    background: '#1a1a1a',
+                    color: '#fff'
+                });
+                closeModal('modal-editar-pedido');
+                cargarHistorial('todos');
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message || 'Error al actualizar el pedido',
+                    background: '#1a1a1a',
+                    color: '#fff'
+                });
+            }
+        })
+        .catch(err => {
+            console.error('Error al actualizar pedido:', err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error de conexión al actualizar el pedido',
+                background: '#1a1a1a',
+                color: '#fff'
+            });
+        });
+    };
+
+    window.cargarHistorial = function(filtro = 'todos') {
+        const historialBody = document.getElementById('historial-body');
+        const historialLoading = document.getElementById('historial-loading');
+        const historialVacio = document.getElementById('historial-vacio');
+        const historialVacioMensaje = document.getElementById('historial-vacio-mensaje');
+        const historialTable = document.getElementById('historial-table');
+
+        // Actualizar botones activos
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.filter === filtro) {
+                btn.classList.add('active');
+            }
+        });
+
+        // Mostrar loading
+        historialLoading.style.display = 'block';
+        historialVacio.style.display = 'none';
+        historialTable.style.display = 'none';
+        historialBody.innerHTML = '';
+
+        const token = document.querySelector('input[name="_token"]')?.value || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+        let url = '/historial';
+        if (filtro === 'reservas') {
+            url = '/historial/reservas';
+        } else if (filtro === 'pedidos') {
+            url = '/historial/pedidos';
+        }
+
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token
+            }
+        })
+        .then(res => {
+            console.log('Respuesta del servidor:', res.status, res.statusText);
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+            return res.json();
+        })
+        .then(data => {
+            console.log('Datos recibidos:', data);
+            historialLoading.style.display = 'none';
+
+            if (data.success && data.historial && data.historial.length > 0) {
+                historialTable.style.display = 'table';
+                data.historial.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    const badgeClass = item.tipo === 'reserva' ? 'badge-reserva' : 'badge-pedido';
+                    const statusClass = item.estado === 'completado' || item.estado === 'confirmado' || item.estado === 'confirmada' ? 'status-confirmado' : 
+                                       item.estado === 'pendiente' ? 'status-pendiente' : 
+                                       item.estado === 'cancelada' || item.estado === 'cancelado' ? 'status-cancelada' : 'status-pendiente';
+                    
+                    row.innerHTML = `
+                        <td>${String(index + 1).padStart(3, '0')}</td>
+                        <td><span class="badge ${badgeClass}">${item.tipo === 'reserva' ? 'Reserva' : 'Pedido'}</span></td>
+                        <td>${item.detalle}</td>
+                        <td>${item.fecha}</td>
+                        <td><span class="status ${statusClass}">${item.estado}</span></td>
+                        <td class="action-cell">
+                            <button class="action-btn download-btn" onclick="descargarPDF('${item.tipo}', ${item.id})" title="Descargar PDF">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            </button>
+                            <button class="action-btn edit-btn" onclick="modificarItem('${item.tipo}', ${item.id})" title="Modificar">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </button>
+                            <button class="action-btn delete-btn" onclick="eliminarItem('${item.tipo}', ${item.id})" title="Eliminar">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                            </button>
+                        </td>
+                    `;
+                    historialBody.appendChild(row);
+                });
+            } else {
+                // Mostrar mensaje de vacío
+                console.log('Mostrando mensaje de vacío para filtro:', filtro);
+                historialVacio.style.display = 'block';
+                if (filtro === 'reservas') {
+                    historialVacioMensaje.textContent = 'Aún no has reservado.';
+                } else if (filtro === 'pedidos') {
+                    historialVacioMensaje.textContent = 'Aún no has hecho ningún pedido.';
+                } else {
+                    historialVacioMensaje.textContent = 'Aún no tienes un historial.';
+                }
+            }
+        })
+        .catch(err => {
+            console.error('Error al cargar historial:', err);
+            historialLoading.style.display = 'none';
+            historialVacio.style.display = 'block';
+            historialVacioMensaje.textContent = 'Error al cargar el historial: ' + err.message;
         });
     };
 
@@ -846,7 +1667,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 'X-CSRF-TOKEN': token
             },
             body: JSON.stringify({
-                zona: zona
+                zona: zona,
+                fecha: new Date().toISOString().split('T')[0],
+                hora: new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit'})
             })
         })
         .then(res => res.json())
@@ -930,13 +1753,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const labelMesa = document.getElementById('label_mesa');
         const mesaHint = document.getElementById('mesa_hint');
         
-        if (parseInt(cantidadMesas) > 2) {
+        if (parseInt(cantidadMesas) >= 2) {
             // Cambiar a input de texto para permitir múltiples mesas separadas por comas
             mesaInput.type = 'text';
             mesaInput.removeAttribute('min');
             mesaInput.removeAttribute('max');
             labelMesa.textContent = 'Mesas (separadas por coma)';
             mesaHint.style.display = 'block';
+            mesaInput.placeholder = 'Ej: 1,2,3';
         } else {
             // Mantener como input numérico
             mesaInput.type = 'number';
@@ -944,8 +1768,53 @@ document.addEventListener('DOMContentLoaded', function() {
             mesaInput.setAttribute('max', '20');
             labelMesa.textContent = 'Mesa (1-20)';
             mesaHint.style.display = 'none';
+            mesaInput.placeholder = 'Ej: 5';
         }
     };
+
+    // Validación de comas en el input de mesas
+    document.addEventListener('DOMContentLoaded', function() {
+        const authMesaInput = document.getElementById('auth_mesa');
+        if (authMesaInput) {
+            authMesaInput.addEventListener('keypress', function(e) {
+                if (e.key === ',') {
+                    const cantidadMesas = document.getElementById('auth_cantidad_mesas').value;
+                    if (parseInt(cantidadMesas) < 2) {
+                        e.preventDefault();
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Cantidad insuficiente',
+                            text: 'Debes seleccionar al menos 2 mesas para usar múltiples mesas con comas.',
+                            background: '#1a1a1a',
+                            color: '#fff',
+                            timer: 2000
+                        });
+                    }
+                }
+            });
+
+            // También validar paste (copiar y pegar)
+            authMesaInput.addEventListener('paste', function(e) {
+                e.preventDefault();
+                const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+                const cantidadMesas = document.getElementById('auth_cantidad_mesas').value;
+                
+                if (parseInt(cantidadMesas) < 2 && pastedText.includes(',')) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Cantidad insuficiente',
+                        text: 'Debes seleccionar al menos 2 mesas para usar múltiples mesas con comas.',
+                        background: '#1a1a1a',
+                        color: '#fff',
+                        timer: 2000
+                    });
+                    return;
+                }
+                
+                this.value += pastedText;
+            });
+        }
+    });
 
     // --- CARRITO ---
     window.agregarAlCarrito = function(id, nombre, precio) {

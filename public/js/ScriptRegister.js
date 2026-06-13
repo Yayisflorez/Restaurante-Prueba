@@ -103,6 +103,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!valid) {
             e.preventDefault();
+        } else {
+            if (typeof mostrarCarga === 'function') mostrarCarga('Creando cuenta...'); else Swal.fire({ title: 'Creando cuenta...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
         }
     });
     }
