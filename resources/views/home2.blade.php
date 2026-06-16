@@ -200,7 +200,7 @@
                         <!-- Personas -->
                         <div class="form-group">
                             <label>Número de Personas</label>
-                            <div class="personas-control">
+                            <div class="personas-control" id="personas-control-wrapper" style="opacity: 0.5; pointer-events: none;" title="Primero selecciona una mesa">
                                 <button type="button" class="personas-btn" onclick="cambiarPersonas(-1)">&#8722;</button>
                                 <div class="personas-display">
                                     <span id="personas-num" class="personas-num">1</span>
@@ -209,6 +209,7 @@
                                 <button type="button" class="personas-btn" onclick="cambiarPersonas(1)">&#43;</button>
                                 <input type="hidden" id="personas_input" name="personas" value="1">
                             </div>
+                            <p id="personas-hint" style="color: #aaa; font-size: 0.82rem; margin-top: 0.4rem;">Selecciona primero una mesa para habilitar este campo.</p>
                         </div>
 
                         <!-- Zona -->
@@ -252,7 +253,7 @@
                             <textarea id="notas" name="notas" class="form-control" rows="3" placeholder="Celebración especial, alergias, etc."></textarea>
                         </div>
 
-                        <button type="submit" class="btn-primary" style="margin-top: 1.5rem; width: 100%; padding: 1rem; font-size: 1.1rem; border-radius: 12px;">Confirmar Reserva</button>
+                        <button type="submit" class="btn-primary" id="btn-confirmar-reserva" style="margin-top: 1.5rem; width: 100%; padding: 1rem; font-size: 1.1rem; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 0.6rem;">Confirmar Reserva</button>
                     </form>
                 </div>
 
@@ -457,12 +458,13 @@
                     <p id="historial-vacio-mensaje" style="color: #aaa; font-size: 1.1rem;"></p>
                 </div>
                 <table class="styled-table" id="historial-table">
-                    <thead>
+                    <thead id="historial-thead">
                         <tr>
                             <th>#</th>
                             <th>Tipo</th>
                             <th>Detalle</th>
-                            <th>Fecha</th>
+                            <th>Fecha Creación</th>
+                            <th>Fecha Reserva</th>
                             <th>Estado</th>
                             <th>Acciones</th>
                         </tr>
@@ -575,81 +577,181 @@
         </div>
 
         <div class="modal-overlay hidden" id="modal-editar-reserva">
-            <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;">
                 <button class="close-modal" onclick="closeModal('modal-editar-reserva')">&times;</button>
                 <h3 class="modal-title">Editar Reserva</h3>
                 <form class="styled-form" id="form-editar-reserva">
                     <input type="hidden" id="edit-reserva-id">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Fecha</label>
-                            <input type="date" id="edit-reserva-fecha" class="form-control" required>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start;">
+                        <!-- Columna Izquierda: Calendario + Hora -->
+                        <div>
+                            <!-- Selector de Fecha Personalizado -->
+                            <div class="date-selector-container">
+                                <div class="date-selector-header">
+                                    <h3 class="date-selector-title">Selecciona la Fecha</h3>
+                                    <div class="date-selector-value" id="edit-selected-date-display">Selecciona una fecha</div>
+                                </div>
+                                <div class="date-selector-body">
+                                    <div class="date-nav">
+                                        <button type="button" class="date-nav-btn" id="edit-prev-month">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                                        </button>
+                                        <span class="date-nav-month" id="edit-current-month-display">Junio 2026</span>
+                                        <button type="button" class="date-nav-btn" id="edit-next-month">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                                        </button>
+                                    </div>
+                                    <div class="date-grid-header">
+                                        <span>Dom</span><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span>
+                                    </div>
+                                    <div class="date-grid" id="edit-date-grid"></div>
+                                </div>
+                                <input type="hidden" id="edit-reserva-fecha" name="fecha" required>
+                            </div>
+
+                            <!-- Selector de Hora Personalizado -->
+                            <div class="time-selector-container">
+                                <div class="time-selector-header">
+                                    <h3 class="time-selector-title">Selecciona la Hora</h3>
+                                    <div class="time-selector-value" id="edit-selected-time-display">12:00</div>
+                                </div>
+                                <div class="time-selector-body">
+                                    <div class="time-display">
+                                        <div class="time-unit">
+                                            <button type="button" class="time-adjust-btn time-up" data-unit="hour" data-ctx="edit">
+                                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+                                            </button>
+                                            <span class="time-value" id="edit-hour-display">12</span>
+                                            <button type="button" class="time-adjust-btn time-down" data-unit="hour" data-ctx="edit">
+                                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                            </button>
+                                        </div>
+                                        <span class="time-separator">:</span>
+                                        <div class="time-unit">
+                                            <button type="button" class="time-adjust-btn time-up" data-unit="minute" data-ctx="edit">
+                                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+                                            </button>
+                                            <span class="time-value" id="edit-minute-display">00</span>
+                                            <button type="button" class="time-adjust-btn time-down" data-unit="minute" data-ctx="edit">
+                                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                            </button>
+                                        </div>
+                                        <div class="time-period">
+                                            <button type="button" class="period-btn" data-period="AM" data-ctx="edit">AM</button>
+                                            <button type="button" class="period-btn active" data-period="PM" data-ctx="edit">PM</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="edit-reserva-hora" name="hora" required>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>Hora</label>
-                            <input type="time" id="edit-reserva-hora" class="form-control" required>
+
+                        <!-- Columna Derecha: Datos -->
+                        <div>
+                            <!-- Zona -->
+                            <div class="form-group" style="margin-bottom: 1rem;">
+                                <label>Zona</label>
+                                <div class="zona-cards" style="gap: 0.5rem;">
+                                    <label class="zona-card" style="padding: 0.6rem 0.8rem; font-size: 0.85rem;">
+                                        <input type="radio" name="edit-reserva-zona" value="interior" required style="display:none;" onchange="cargarMesasEdit('interior')">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                                        <span>Interior</span>
+                                    </label>
+                                    <label class="zona-card" style="padding: 0.6rem 0.8rem; font-size: 0.85rem;">
+                                        <input type="radio" name="edit-reserva-zona" value="terraza" required style="display:none;" onchange="cargarMesasEdit('terraza')">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                                        <span>Terraza</span>
+                                    </label>
+                                    <label class="zona-card" style="padding: 0.6rem 0.8rem; font-size: 0.85rem;">
+                                        <input type="radio" name="edit-reserva-zona" value="privado" required style="display:none;" onchange="cargarMesasEdit('privado')">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                                        <span>Salón Privado</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Personas -->
+                            <div class="form-group" style="margin-bottom: 1rem;">
+                                <label>Número de Personas</label>
+                                <input type="number" id="edit-reserva-personas" class="form-control" min="1" required>
+                            </div>
+
+                            <!-- Mesas -->
+                            <div class="form-group" style="margin-bottom: 1rem;">
+                                <label>Mesas (selección múltiple)</label>
+                                <div class="mesa-info">
+                                    <span id="edit-mesas-seleccionadas-info">0 mesas seleccionadas</span>
+                                </div>
+                                <div class="mesa-selector-grid" id="edit-mesa-selector-grid"></div>
+                                <input type="hidden" id="edit-reserva-mesas" name="mesas" required>
+                            </div>
+
+                            <!-- Notas -->
+                            <div class="form-group" style="margin-bottom: 1rem;">
+                                <label>Notas (opcional)</label>
+                                <textarea id="edit-reserva-notas" class="form-control" rows="2"></textarea>
+                            </div>
+
+                            <button type="button" class="btn-primary" style="width: 100%;" onclick="guardarEdicionReserva()">Guardar Cambios</button>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>Zona</label>
-                        <div style="display: flex; gap: 1rem;">
-                            <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                <input type="radio" name="edit-reserva-zona" value="interior" required> Interior
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                <input type="radio" name="edit-reserva-zona" value="terraza"> Terraza
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 0.5rem;">
-                                <input type="radio" name="edit-reserva-zona" value="privado"> Privado
-                            </label>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Personas</label>
-                        <input type="number" id="edit-reserva-personas" class="form-control" min="1" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Mesas</label>
-                        <div id="edit-mesa-selector-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 0.5rem; margin-top: 0.5rem;"></div>
-                        <input type="hidden" id="edit-reserva-mesas" name="mesas">
-                        <p id="edit-mesas-seleccionadas-info" style="color: #aaa; font-size: 0.9rem; margin-top: 0.5rem;">0 mesas seleccionadas</p>
-                    </div>
-                    <div class="form-group">
-                        <label>Notas (opcional)</label>
-                        <textarea id="edit-reserva-notas" class="form-control" rows="2"></textarea>
-                    </div>
-                    <button type="button" class="btn-primary" onclick="guardarEdicionReserva()">Guardar Cambios</button>
                 </form>
             </div>
         </div>
 
         <div class="modal-overlay hidden" id="modal-editar-pedido">
-            <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
-                <button class="close-modal" onclick="closeModal('modal-editar-pedido')">&times;</button>
-                <h3 class="modal-title">Editar Pedido</h3>
+            <div class="modal-content" style="max-width: 1200px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; padding: 0;">
+                <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                    <h3 class="modal-title" style="margin: 0;">Editar Pedido</h3>
+                    <button class="close-modal" onclick="closeModal('modal-editar-pedido')" style="position: static; font-size: 2rem;">&times;</button>
+                </div>
                 <input type="hidden" id="edit-pedido-id">
                 
-                <div class="form-group" style="margin-bottom: 1.5rem;">
-                    <div class="form-group" style="margin-bottom: 1rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; color: #aaa; font-size: 0.9rem;">Selecciona del menú:</label>
-                        <div class="pedidos-grid-container" id="edit-pedido-platos-grid" style="max-height: 250px; overflow-y: auto; padding: 0.5rem; background: rgba(0,0,0,0.3); border-radius: 12px;">
+                <div style="display: flex; flex: 1; min-height: 0; overflow: hidden;">
+                    <!-- Columna Izquierda: Menú -->
+                    <div style="flex: 2; padding: 1.5rem; display: flex; flex-direction: column; overflow-y: auto; border-right: 1px solid var(--border-color);">
+                        <div class="form-group" style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-shrink: 0;">
+                            <input type="text" id="edit-buscar_plato" class="form-control" placeholder="Buscar plato por nombre..." onkeyup="filtrarPlatosEditPedido()" style="flex: 2; border-radius: 20px; background: rgba(0,0,0,0.5); padding-left: 1.5rem;">
+                            <select id="edit-categoria_plato" class="form-control" onchange="filtrarPlatosEditPedido()" style="flex: 1; border-radius: 20px; background: rgba(0,0,0,0.5);">
+                                <option value="all">Todas las Categorías</option>
+                                @foreach ($categorias as $categoria)
+                                    <option value="{{ $categoria->id }}">{{ $categoria->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="pedidos-grid-container" id="edit-pedido-platos-grid" style="padding-bottom: 1rem;">
                             <!-- Los platos se cargarán dinámicamente -->
                         </div>
                     </div>
-                </div>
 
-                <div class="form-group" style="margin-bottom: 1rem;">
-                    <label style="display: block; margin-bottom: 0.5rem; color: #aaa; font-size: 0.9rem;">Platos en tu pedido:</label>
-                    <div class="pedidos-container" id="edit-pedido-detalles" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; max-height: 400px; overflow-y: auto; padding: 0.5rem;">
-                        <!-- Los detalles se cargarán dinámicamente -->
+                    <!-- Columna Derecha: Voucher / Carrito -->
+                    <div class="modern-cart" style="flex: 1; min-width: 350px; padding: 1.5rem; display: flex; flex-direction: column; background: var(--bg-sidebar);">
+                        <div class="cart-header" style="flex-shrink: 0; margin-bottom: 1rem;">
+                            <h3 style="margin: 0; color: var(--primary);">Platos en tu pedido</h3>
+                        </div>
+                        
+                        <div id="edit-pedido-detalles" class="cart-items-wrapper" style="flex: 1; overflow-y: auto; padding-right: 0.5rem; margin-bottom: 1rem;">
+                            <!-- Los detalles se cargarán dinámicamente -->
+                        </div>
+                        
+                        <div class="cart-footer" style="flex-shrink: 0;">
+                            <div class="form-group" style="margin-bottom: 1rem;">
+                                <label style="font-size: 0.85rem; color: #aaa;">Método de Pago</label>
+                                <select id="edit_metodo_pago_pedido" class="form-control" style="background: rgba(0,0,0,0.5);">
+                                    @foreach ($metodos_pago ?? [] as $metodo)
+                                        <option value="{{ $metodo->id }}">{{ $metodo->nombre }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="cart-total-row" style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                                <span style="font-size: 1.1rem;">Total</span>
+                                <span id="edit-pedido-total" class="total-amount" style="font-size: 1.3rem; font-weight: bold; color: var(--primary);">$0.00</span>
+                            </div>
+                            <button type="button" class="btn-primary" style="width: 100%; border-radius: 12px; font-size: 1.1rem; padding: 1rem;" onclick="guardarEdicionPedido()">Guardar Cambios</button>
+                        </div>
                     </div>
                 </div>
-                
-                <div style="background: var(--bg-dark); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
-                    <p style="margin: 0; font-size: 1.1rem;"><strong>Total:</strong></p>
-                    <p style="margin: 0; font-size: 1.3rem; color: var(--primary);"><strong>$<span id="edit-pedido-total">0.00</span></strong></p>
-                </div>
-                <button type="button" class="btn-primary" style="width: 100%; padding: 1rem; font-size: 1.1rem; border-radius: 12px;" onclick="guardarEdicionPedido()">Guardar Cambios</button>
             </div>
         </div>
 

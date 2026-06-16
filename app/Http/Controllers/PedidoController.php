@@ -142,7 +142,9 @@ class PedidoController extends Controller
                     'id' => $pedido->id,
                     'tipo' => 'pedido',
                     'detalle' => $detalles ?: 'Sin detalles',
+                    'fecha_creacion' => $pedido->created_at->format('d/m/Y H:i'),
                     'fecha' => $pedido->created_at->format('d/m/Y'),
+                    'fecha_reserva' => null,
                     'estado' => $pedido->estado
                 ];
             });

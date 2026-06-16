@@ -49,7 +49,9 @@ class HomeController extends Controller
                     'id' => $pedido->id,
                     'tipo' => 'pedido',
                     'detalle' => $detalles ?: 'Sin detalles',
+                    'fecha_creacion' => $pedido->created_at->format('d/m/Y H:i'),
                     'fecha' => $pedido->created_at->format('d/m/Y'),
+                    'fecha_reserva' => null,
                     'estado' => $pedido->estado
                 ];
             });
@@ -62,14 +64,15 @@ class HomeController extends Controller
                     'id' => $reserva->id,
                     'tipo' => 'reserva',
                     'detalle' => "Mesa {$reserva->mesa} - {$reserva->personas} persona(s) - {$reserva->zona}",
+                    'fecha_creacion' => $reserva->created_at->format('d/m/Y H:i'),
                     'fecha' => $reserva->created_at->format('d/m/Y'),
+                    'fecha_reserva' => \Carbon\Carbon::parse($reserva->fecha)->format('d/m/Y'),
                     'estado' => $reserva->estado
                 ];
             });
 
         // Combinar y ordenar por fecha
         $historial = $pedidos->concat($reservas)->sortByDesc(function($item) {
-            // Convertir fecha de formato d/m/Y a timestamp para ordenar
             $parts = explode('/', $item['fecha']);
             if (count($parts) === 3) {
                 return mktime(0, 0, 0, $parts[1], $parts[0], $parts[2]);

@@ -79,7 +79,9 @@ class ReservaController extends Controller
                     'id' => $reserva->id,
                     'tipo' => 'reserva',
                     'detalle' => "Mesa {$reserva->mesa} - {$reserva->personas} persona(s) - {$reserva->zona}",
+                    'fecha_creacion' => $reserva->created_at->format('d/m/Y H:i'),
                     'fecha' => $reserva->created_at->format('d/m/Y'),
+                    'fecha_reserva' => \Carbon\Carbon::parse($reserva->fecha)->format('d/m/Y'),
                     'estado' => $reserva->estado
                 ];
             });
