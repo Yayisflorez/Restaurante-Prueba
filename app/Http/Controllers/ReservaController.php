@@ -102,11 +102,12 @@ class ReservaController extends Controller
             return response()->json(['success' => false, 'message' => 'Reserva no encontrada'], 404);
         }
 
+        $user = auth()->user();
         $codigoReporte = 'RPT-' . strtoupper(substr(md5(uniqid(rand(), true)), 0, 8));
 
         $pdf = new \FPDF();
         $pdf->AddPage();
-        $pdf->SetAutoPageBreak(false);
+        $pdf->SetAutoPageBreak(true, 15);
 
         // ─── Paleta ───────────────────────────────────────────────────────────────
         $gold = [194, 154, 38];
@@ -118,6 +119,7 @@ class ReservaController extends Controller
         $lineSep = [220, 200, 120];
         $cream = [253, 251, 245];
         $cream2 = [246, 242, 230];
+        $blue = [30, 80, 160];
 
         // ─── HEADER DEGRADADO ─────────────────────────────────────────────────────
         for ($i = 0; $i < 60; $i++) {
@@ -131,18 +133,13 @@ class ReservaController extends Controller
         // ─── LOGO con proporciones correctas ──────────────────────────────────────
         $logoPath = public_path('img/LogoRestaurant.png');
         if (file_exists($logoPath)) {
-            // Obtener dimensiones reales del logo para no estirarlo
             $logoInfo = getimagesize($logoPath);
             if ($logoInfo) {
-                $logoW_px = $logoInfo[0];
-                $logoH_px = $logoInfo[1];
-                $ratio = $logoH_px / $logoW_px;
-
-                // Ancho fijo de 22mm, alto proporcional
+                $ratio = $logoInfo[1] / $logoInfo[0];
                 $logoW = 38;
                 $logoH = $logoW * $ratio;
-                $logoX = (210 - $logoW) / 2;   // centrado
-                $logoY = max(3, (58 - $logoH) / 2);   // centrado verticalmente en el header
+                $logoX = (210 - $logoW) / 2;
+                $logoY = max(3, (58 - $logoH) / 2);
                 $pdf->Image($logoPath, $logoX, $logoY, $logoW, $logoH);
             }
         }
@@ -159,7 +156,7 @@ class ReservaController extends Controller
 
         // ─── FONDO CUERPO ─────────────────────────────────────────────────────────
         $pdf->SetFillColor($lightBg[0], $lightBg[1], $lightBg[2]);
-        $pdf->Rect(0, 62, 210, 206, 'F');
+        $pdf->Rect(0, 62, 210, 236, 'F');
 
         // Código de reporte
         $pdf->SetY(66);
@@ -167,12 +164,73 @@ class ReservaController extends Controller
         $pdf->SetFont('Arial', 'I', 8);
         $pdf->Cell(0, 5, 'Reporte: ' . $codigoReporte, 0, 1, 'C');
 
-        // ─── TARJETA PRINCIPAL ────────────────────────────────────────────────────
+        // ─── TARJETA DATOS DEL USUARIO ────────────────────────────────────────────
         $cardX = 20;
-        $cardY = 76;
+        $userCardY = 76;
         $cardW = 170;
+        $labelW = 58;
 
-        // SIN Estado en la tabla — se muestra solo en el badge
+        $userInfo = [
+            ['Nombre', ($user->name ?? '') . ' ' . ($user->lastname ?? '')],
+            ['Cedula / Documento', $user->numero_documento ?? 'No registrado'],
+            ['Correo', $user->email ?? 'No registrado'],
+        ];
+
+        $rowH = 13;
+        $userCardH = count($userInfo) * $rowH + 14;
+
+        // Sombra
+        $pdf->SetFillColor(195, 182, 148);
+        $pdf->Rect($cardX + 3, $userCardY + 3, $cardW, $userCardH, 'F');
+        // Fondo blanco
+        $pdf->SetFillColor(255, 255, 255);
+        $pdf->Rect($cardX, $userCardY, $cardW, $userCardH, 'F');
+        // Borde azul
+        $pdf->SetDrawColor($blue[0], $blue[1], $blue[2]);
+        $pdf->SetLineWidth(0.9);
+        $pdf->Rect($cardX, $userCardY, $cardW, $userCardH, 'D');
+        $pdf->SetLineWidth(0.2);
+
+        // Barra título tarjeta usuario
+        $pdf->SetFillColor($blue[0], $blue[1], $blue[2]);
+        $pdf->Rect($cardX, $userCardY, $cardW, 13, 'F');
+        $pdf->SetFillColor(100, 140, 210);
+        $pdf->Rect($cardX, $userCardY + 11.5, $cardW, 1, 'F');
+
+        $pdf->SetTextColor($white[0], $white[1], $white[2]);
+        $pdf->SetFont('Arial', 'B', 11);
+        $pdf->SetXY($cardX, $userCardY);
+        $pdf->Cell($cardW, 13, 'DATOS DEL CLIENTE', 0, 1, 'C');
+
+        // Filas de usuario
+        $startY = $userCardY + 14;
+        foreach ($userInfo as $i => $row) {
+            $y = $startY + $i * $rowH;
+
+            $pdf->SetFillColor(...($i % 2 === 0 ? $cream : $cream2));
+            $pdf->Rect($cardX + 1, $y, $cardW - 2, $rowH - 1, 'F');
+
+            $pdf->SetDrawColor($lineSep[0], $lineSep[1], $lineSep[2]);
+            $pdf->SetLineWidth(0.15);
+            $pdf->Line($cardX + 1, $y + $rowH - 1, $cardX + $cardW - 1, $y + $rowH - 1);
+
+            $pdf->SetDrawColor(100, 140, 210);
+            $pdf->Line($cardX + $labelW + 6, $y + 2, $cardX + $labelW + 6, $y + $rowH - 3);
+
+            $pdf->SetTextColor($blue[0], $blue[1], $blue[2]);
+            $pdf->SetFont('Arial', 'B', 9);
+            $pdf->SetXY($cardX + 6, $y + 3.5);
+            $pdf->Cell($labelW, 5, $row[0] . ':', 0, 0, 'L');
+
+            $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
+            $pdf->SetFont('Arial', '', 10);
+            $pdf->SetXY($cardX + $labelW + 10, $y + 3.5);
+            $pdf->Cell($cardW - $labelW - 14, 5, $row[1], 0, 0, 'L');
+        }
+
+        // ─── TARJETA DETALLE DE LA RESERVA ────────────────────────────────────────
+        $cardY = $userCardY + $userCardH + 10;
+
         $info = [
             ['Codigo de Reserva', $reserva->codigo_referencia],
             ['Fecha', $reserva->fecha],
@@ -204,7 +262,6 @@ class ReservaController extends Controller
         $pdf->SetFillColor($gold[0], $gold[1], $gold[2]);
         $pdf->Rect($cardX, $cardY, $cardW, 13, 'F');
 
-        // Línea dorada clara dentro de la barra (detalle)
         $pdf->SetFillColor($goldL[0], $goldL[1], $goldL[2]);
         $pdf->Rect($cardX, $cardY + 11.5, $cardW, 1, 'F');
 
@@ -214,40 +271,34 @@ class ReservaController extends Controller
         $pdf->Cell($cardW, 13, 'DETALLE DE LA RESERVA', 0, 1, 'C');
 
         // ─── FILAS ────────────────────────────────────────────────────────────────
-        $labelW = 58;
         $startY = $cardY + 14;
 
         foreach ($info as $i => $row) {
             $y = $startY + $i * $rowH;
 
-            // Fondo alterno
             $pdf->SetFillColor(...($i % 2 === 0 ? $cream : $cream2));
             $pdf->Rect($cardX + 1, $y, $cardW - 2, $rowH - 1, 'F');
 
-            // Separador
             $pdf->SetDrawColor($lineSep[0], $lineSep[1], $lineSep[2]);
             $pdf->SetLineWidth(0.15);
             $pdf->Line($cardX + 1, $y + $rowH - 1, $cardX + $cardW - 1, $y + $rowH - 1);
 
-            // Línea vertical separando label/valor
             $pdf->SetDrawColor($goldL[0], $goldL[1], $goldL[2]);
             $pdf->Line($cardX + $labelW + 6, $y + 2, $cardX + $labelW + 6, $y + $rowH - 3);
 
-            // Label
             $pdf->SetTextColor($gold[0], $gold[1], $gold[2]);
             $pdf->SetFont('Arial', 'B', 9);
             $pdf->SetXY($cardX + 6, $y + 4);
             $pdf->Cell($labelW, 5, $row[0] . ':', 0, 0, 'L');
 
-            // Valor
             $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
             $pdf->SetFont('Arial', '', 10);
             $pdf->SetXY($cardX + $labelW + 10, $y + 4);
             $pdf->Cell($cardW - $labelW - 14, 5, $row[1], 0, 0, 'L');
         }
 
-        // ─── BADGE ESTADO (único, bonito) ─────────────────────────────────────────
-        $badgeY = $cardY + $cardH + 12;
+        // ─── BADGE ESTADO ─────────────────────────────────────────────────────────
+        $badgeY = $cardY + $cardH + 10;
         $estado = strtolower($reserva->estado);
 
         if ($estado === 'confirmada') {
@@ -264,51 +315,44 @@ class ReservaController extends Controller
             $icono = 'PENDIENTE';
         }
 
-        // Sombra del badge
         $pdf->SetFillColor(150, 140, 110);
         $pdf->Rect(63, $badgeY + 2, 86, 14, 'F');
 
-        // Fondo badge
         $pdf->SetFillColor($badgeColor[0], $badgeColor[1], $badgeColor[2]);
         $pdf->Rect(60, $badgeY, 90, 14, 'F');
 
-        // Franja clara en la parte superior del badge (efecto luz)
         $pdf->SetFillColor($badgeColorL[0], $badgeColorL[1], $badgeColorL[2]);
         $pdf->Rect(60, $badgeY, 90, 3, 'F');
 
-        // Texto badge
         $pdf->SetTextColor($white[0], $white[1], $white[2]);
         $pdf->SetFont('Arial', 'B', 11);
         $pdf->SetXY(60, $badgeY + 3);
         $pdf->Cell(90, 8, 'ESTADO: ' . $icono, 0, 1, 'C');
 
-        // Etiqueta pequeña bajo el badge
         $pdf->SetTextColor($gray[0], $gray[1], $gray[2]);
         $pdf->SetFont('Arial', 'I', 7);
         $pdf->SetXY(60, $badgeY + 15);
         $pdf->Cell(90, 4, 'Estado actual de su reserva', 0, 1, 'C');
 
         // ─── FOOTER ───────────────────────────────────────────────────────────────
-        // Franja dorada encima del footer
+        $footerY = $pdf->GetPageHeight() - 30;
         $pdf->SetFillColor($gold[0], $gold[1], $gold[2]);
-        $pdf->Rect(0, 265, 210, 2, 'F');
+        $pdf->Rect(0, $footerY, 210, 2, 'F');
 
-        // Fondo footer oscuro
         $pdf->SetFillColor($dark[0], $dark[1], $dark[2]);
-        $pdf->Rect(0, 267, 210, 30, 'F');
+        $pdf->Rect(0, $footerY + 2, 210, 30, 'F');
 
-        // Línea dorada clara dentro del footer
         $pdf->SetFillColor($goldL[0], $goldL[1], $goldL[2]);
-        $pdf->Rect(30, 275, 150, 0.5, 'F');
+        $pdf->Rect(30, $footerY + 10, 150, 0.5, 'F');
 
         $pdf->SetTextColor($goldL[0], $goldL[1], $goldL[2]);
         $pdf->SetFont('Arial', 'B', 9);
-        $pdf->SetXY(0, 269);
+        $pdf->SetXY(0, $footerY + 4);
         $pdf->Cell(0, 6, 'Restaurante - Gracias por su preferencia', 0, 1, 'C');
 
         $pdf->SetTextColor($gray[0], $gray[1], $gray[2]);
         $pdf->SetFont('Arial', '', 7);
-        $pdf->SetXY(0, 276);
+        $pdf->SetXY(0, $footerY + 11);
         $pdf->Cell(0, 5, 'Generado el: ' . now()->format('d/m/Y H:i:s') . '   |   Documento oficial', 0, 1, 'C');
 
         $pdf->Output('D', 'reserva_' . $reserva->codigo_referencia . '.pdf');
