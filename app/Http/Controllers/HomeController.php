@@ -142,102 +142,163 @@ class HomeController extends Controller
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         
-        $sheet->setCellValue('A1', 'Reporte de Historial - Sabor & Tradición');
-        $sheet->mergeCells('A1:E1');
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(18)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFC29545'));
-        $sheet->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        // --- 1. CONFIGURACIÓN GENERAL ---
+        $sheet->setShowGridlines(false); // Ocultar líneas de cuadrícula para un look más limpio
 
-        $user = auth()->user();
+        $tituloReporte = 'Reporte de Historial General';
+        if ($filtro === 'pedidos') {
+            $tituloReporte = 'Reporte de Pedidos';
+        } elseif ($filtro === 'reservas') {
+            $tituloReporte = 'Reporte de Reservas';
+        }
 
-        // Date generated
-        $sheet->setCellValue('A2', 'Generado el: ' . date('d/m/Y H:i:s'));
-        $sheet->mergeCells('A2:E2');
-        $sheet->getStyle('A2')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('A2')->getFont()->setItalic(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF555555'));
-
-        // Client Info
-        $sheet->setCellValue('A4', 'Información del Cliente:');
-        $sheet->getStyle('A4')->getFont()->setBold(true)->setSize(12);
+        // --- 2. ENCABEZADO (HEADER) ---
+        // Fondo oscuro y elegante para las primeras 4 filas
+        $sheet->mergeCells('A1:E4');
+        $sheet->getStyle('A1:E4')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF1C1C23');
         
-        $sheet->setCellValue('A5', 'Nombre:');
-        $sheet->setCellValue('B5', $user->name . ' ' . $user->lastname);
-        $sheet->getStyle('A5')->getFont()->setBold(true);
+        // Agregar Logo
+        $logoPath = public_path('img/LogoRestaurant.png');
+        if (file_exists($logoPath)) {
+            $drawing = new \PhpOffice\PhpSpreadsheet\Worksheet\Drawing();
+            $drawing->setName('Logo');
+            $drawing->setDescription('Logo Sabor & Tradicion');
+            $drawing->setPath($logoPath);
+            $drawing->setHeight(60);
+            $drawing->setCoordinates('A1');
+            $drawing->setOffsetX(15);
+            $drawing->setOffsetY(10);
+            $drawing->setWorksheet($sheet);
+        }
 
-        $sheet->setCellValue('A6', 'Documento:');
-        $sheet->setCellValue('B6', $user->numero_documento ?? 'N/A');
-        $sheet->getStyle('A6')->getFont()->setBold(true);
+        // Título del documento
+        $sheet->setCellValue('A1', "\nSabor & Tradición\n" . $tituloReporte);
+        $sheet->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A1')->getAlignment()->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $sheet->getStyle('A1')->getAlignment()->setWrapText(true);
+        // Fuente Times New Roman en dorado
+        $sheet->getStyle('A1')->getFont()->setName('Times New Roman')->setBold(true)->setSize(16)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFC29545'));
+        
+        // Borde inferior dorado
+        $sheet->getStyle('A4:E4')->getBorders()->getBottom()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THICK)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFC29545'));
 
-        $sheet->setCellValue('A7', 'Teléfono:');
-        $sheet->setCellValue('B7', $user->telefono ?? 'N/A');
-        $sheet->getStyle('A7')->getFont()->setBold(true);
+        // --- 3. DATOS DEL CLIENTE ---
+        $user = auth()->user();
+        
+        // Cabecera de la sección de cliente (Fondo Azul)
+        $sheet->setCellValue('A6', 'DATOS DEL CLIENTE');
+        $sheet->mergeCells('A6:E6');
+        $sheet->getStyle('A6')->getFont()->setBold(true)->setSize(10)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFFFFFFF'));
+        $sheet->getStyle('A6')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF1E3C78');
+        $sheet->getStyle('A6')->getAlignment()->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $sheet->getRowDimension(6)->setRowHeight(20);
 
-        $sheet->setCellValue('A8', 'Correo:');
-        $sheet->setCellValue('B8', $user->email);
-        $sheet->getStyle('A8')->getFont()->setBold(true);
+        // Fondo azul claro para los datos
+        $sheet->getStyle('A7:E9')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFDCE6F8');
 
-        $columns = ['A' => '#', 'B' => 'Tipo', 'C' => 'Detalle', 'D' => 'Fecha', 'E' => 'Estado'];
+        $sheet->setCellValue('A7', 'Nombre:');
+        $sheet->setCellValue('B7', $user->name . ' ' . $user->lastname);
+        $sheet->setCellValue('A8', 'Documento:');
+        $sheet->setCellValue('B8', $user->numero_documento ?? 'No registrado');
+        $sheet->setCellValue('A9', 'Correo:');
+        $sheet->setCellValue('B9', $user->email ?? 'No registrado');
+
+        $sheet->getStyle('A7:A9')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF1E3C78'));
+        $sheet->getStyle('B7:B9')->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF1C1C23'));
+
+        // Metadatos a la derecha
+        $sheet->setCellValue('D8', 'Generado:');
+        $sheet->setCellValue('E8', date('d/m/Y H:i'));
+        $sheet->getStyle('D8')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF1E3C78'));
+        $sheet->getStyle('E8')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        
+        $sheet->setCellValue('D9', 'Filtro Activo:');
+        $sheet->setCellValue('E9', ucfirst($filtro));
+        $sheet->getStyle('D9')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FF1E3C78'));
+        $sheet->getStyle('E9')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+
+        // --- 4. CABECERA DE LA TABLA ---
+        $columns = ['A' => 'N°', 'B' => 'TIPO', 'C' => 'DETALLE', 'D' => 'FECHA', 'E' => 'ESTADO'];
         foreach ($columns as $col => $title) {
-            $sheet->setCellValue($col . '10', $title);
+            $sheet->setCellValue($col . '11', $title);
         }
 
         $headerStyleArray = [
             'font' => [
                 'bold' => true,
-                'color' => ['argb' => \PhpOffice\PhpSpreadsheet\Style\Color::COLOR_WHITE],
+                'color' => ['argb' => 'FFFFFFFF'],
+                'size' => 10,
             ],
             'fill' => [
                 'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                'startColor' => ['argb' => 'FF1A1A1A'], // Dark background for header
+                'startColor' => ['argb' => 'FFC29545'], // Dorado
             ],
             'alignment' => [
                 'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
             ],
             'borders' => [
-                'allBorders' => [
-                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                    'color' => ['argb' => 'FFC29545']
+                'bottom' => [
+                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_MEDIUM,
+                    'color' => ['argb' => 'FF1C1C23']
                 ],
             ],
         ];
-        $sheet->getStyle('A10:E10')->applyFromArray($headerStyleArray);
+        $sheet->getStyle('A11:E11')->applyFromArray($headerStyleArray);
+        $sheet->getRowDimension(11)->setRowHeight(25);
 
-        $rowNum = 11;
+        // --- 5. DATOS DE LA TABLA ---
+        $rowNum = 12;
         foreach ($historial as $index => $row) {
             $sheet->setCellValue('A' . $rowNum, $index + 1);
             $sheet->setCellValue('B' . $rowNum, $row['tipo']);
             $sheet->setCellValue('C' . $rowNum, $row['detalle']);
             $sheet->setCellValue('D' . $rowNum, $row['fecha']);
-            $sheet->setCellValue('E' . $rowNum, $row['estado']);
+            $sheet->setCellValue('E' . $rowNum, strtoupper($row['estado']));
 
-            // Border for data row
-            $sheet->getStyle('A'.$rowNum.':E'.$rowNum)->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFDDDDDD'));
-            
-            // Alternating colors
-            if ($rowNum % 2 == 0) {
-                $sheet->getStyle('A'.$rowNum.':E'.$rowNum)->getFill()
-                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-                    ->getStartColor()->setARGB('FFF9F9F9');
+            // Colores alternos
+            $rowColor = ($rowNum % 2 == 0) ? 'FFFFFFFF' : 'FFF2F0E9'; // Blanco / Crema claro
+            $sheet->getStyle('A'.$rowNum.':E'.$rowNum)->getFill()
+                ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()->setARGB($rowColor);
+
+            // Borde sutil inferior
+            $sheet->getStyle('A'.$rowNum.':E'.$rowNum)->getBorders()->getBottom()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_HAIR)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('FFDDDDDD'));
+
+            // Colores por Estado (Badge Style)
+            $estado = strtolower($row['estado']);
+            $statusColor = 'FF1C1C23';
+            if ($estado === 'completado' || $estado === 'confirmada') {
+                $statusColor = 'FF226E3C'; // Verde
+            } elseif ($estado === 'pendiente' || $estado === 'en proceso' || $estado === 'en_proceso') {
+                $statusColor = 'FFAA640A'; // Ámbar
+            } elseif ($estado === 'cancelado' || $estado === 'cancelada') {
+                $statusColor = 'FFA02323'; // Rojo
             }
-
-            // Status color highlight
-            $statusColor = 'FF000000';
-            if (strtolower($row['estado']) === 'completado') $statusColor = 'FF27AE60';
-            else if (strtolower($row['estado']) === 'pendiente') $statusColor = 'FFE67E22';
-            else if (strtolower($row['estado']) === 'cancelada') $statusColor = 'FFE74C3C';
             $sheet->getStyle('E'.$rowNum)->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color($statusColor))->setBold(true);
 
-            // Center align some columns
+            // Alineaciones
             $sheet->getStyle('A'.$rowNum)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('B'.$rowNum)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('C'.$rowNum)->getAlignment()->setWrapText(true);
             $sheet->getStyle('D'.$rowNum)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('E'.$rowNum)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+
+            // Centrado vertical
+            $sheet->getStyle('A'.$rowNum.':E'.$rowNum)->getAlignment()->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+            
+            // Altura para texto largo
+            $sheet->getRowDimension($rowNum)->setRowHeight(30);
 
             $rowNum++;
         }
 
-        foreach (range('A', 'E') as $columnID) {
-            $sheet->getColumnDimension($columnID)->setAutoSize(true);
-        }
+        // Ajuste de columnas
+        $sheet->getColumnDimension('A')->setWidth(6);
+        $sheet->getColumnDimension('B')->setWidth(15);
+        $sheet->getColumnDimension('C')->setWidth(50);
+        $sheet->getColumnDimension('D')->setWidth(15);
+        $sheet->getColumnDimension('E')->setWidth(18);
 
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $filename = "historial_" . $filtro . "_" . date('Ymd_His') . ".xlsx";

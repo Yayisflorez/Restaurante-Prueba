@@ -181,7 +181,7 @@ class PedidoController extends Controller
         $pdf->SetAutoPageBreak(true, 20);
 
         // ─── Paleta ───────────────────────────────────────────────────────────────
-        $gold    = [194, 154, 38];
+        $gold    = [194, 149, 69]; // Color primario web
         $goldD   = [140, 108, 20];
         $goldL   = [240, 220, 140];
         $goldXL  = [252, 246, 220];
@@ -250,8 +250,8 @@ class PedidoController extends Controller
         // ─── Nombre del restaurante + subtítulo ──────────────────────────────────
         $pdf->SetXY($margin + 34, 10);
         $pdf->SetTextColor($goldL[0], $goldL[1], $goldL[2]);
-        $pdf->SetFont('Arial', 'B', 18);
-        $pdf->Cell(0, 10, $enc('Sabor & Tradicion'), 0, 1, 'L');
+        $pdf->SetFont('Times', 'BI', 22);
+        $pdf->Cell(0, 10, $enc('Sabor & Tradición'), 0, 1, 'L');
 
         $pdf->SetXY($margin + 34, 21);
         $pdf->SetTextColor($grayL[0], $grayL[1], $grayL[2]);
@@ -589,6 +589,7 @@ class PedidoController extends Controller
         // ══════════════════════════════════════════════════════════════════════════
         // FOOTER
         // ══════════════════════════════════════════════════════════════════════════
+        $pdf->SetAutoPageBreak(false); // Evitar salto de página
         $footerY = $pdf->GetPageHeight() - 22;
 
         // Línea dorada separadora
@@ -601,9 +602,9 @@ class PedidoController extends Controller
         $pdf->Rect(0, $footerY + 1, $pageW, 25, 'F');
 
         $pdf->SetTextColor($goldL[0], $goldL[1], $goldL[2]);
-        $pdf->SetFont('Arial', 'B', 8.5);
+        $pdf->SetFont('Times', 'I', 10);
         $pdf->SetXY(0, $footerY + 5);
-        $pdf->Cell($pageW, 6, $enc('Sabor & Tradicion  —  Gracias por su preferencia'), 0, 1, 'C');
+        $pdf->Cell($pageW, 6, $enc('Sabor & Tradición  —  Gracias por su preferencia'), 0, 1, 'C');
 
         $pdf->SetTextColor($gray[0], $gray[1], $gray[2]);
         $pdf->SetFont('Arial', '', 6.5);

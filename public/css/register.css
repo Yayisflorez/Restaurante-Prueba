@@ -143,3 +143,16 @@
             .form-row { flex-direction: column; gap: 0; }
             .form-row .form-group { margin-bottom: 1.5rem; }
         }
+
+        /* Utilities Extracted from Inline Styles */
+        .auth-header-left { text-align: left; margin-bottom: 1rem; }
+        .back-link-top { margin-top: 0; }
+        .alert-box { padding: 10px; border-radius: 5px; margin-bottom: 1rem; font-size: 0.9rem; border: 1px solid; }
+        .alert-error { color: #e84c3d; background: rgba(232, 76, 61, 0.1); border-color: rgba(232, 76, 61, 0.3); }
+        .alert-success { color: #2ecc71; background: rgba(46, 204, 113, 0.1); border-color: rgba(46, 204, 113, 0.3); }
+        .alert-list { margin: 0; padding-left: 20px; }
+        .auth-footer { margin-top: 2rem; }
+        .auth-footer p { margin-bottom: 0; }
+        .auth-link { color: var(--primary); text-decoration: none; font-weight: 500; }
+        .select-dark { color: #fff; background: rgba(0,0,0,0.5); }
+        .text-sm-muted { color: var(--text-muted); font-size: 0.75rem; }

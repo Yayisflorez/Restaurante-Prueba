@@ -220,6 +220,7 @@ class AdminController extends Controller
         $pedidos = Pedido::with('user', 'detalles.plato')->orderBy('created_at', 'desc')->paginate(10);
         $pedidoCount = Pedido::count();
         $uniqueClients = Pedido::distinct('user_id')->count('user_id');
+        $users = User::whereIn('rol', ['user', 'employee'])->orderBy('name')->get();
 
         $weeklyPedidos = Pedido::selectRaw('DATE(created_at) AS date, COUNT(*) AS total')
             ->where('created_at', '>=', now()->subDays(7))
@@ -246,6 +247,7 @@ class AdminController extends Controller
             'weeklyValues' => $weeklyPedidos->pluck('total')->toArray(),
             'monthlyLabels' => $monthlyPedidos->pluck('month')->map(fn($month) => date('M', mktime(0, 0, 0, $month, 1)))->toArray(),
             'monthlyValues' => $monthlyPedidos->pluck('total')->toArray(),
+            'users' => $users,
         ]);
     }
 
@@ -394,7 +396,9 @@ class AdminController extends Controller
             $request->validate([
                 'detalles' => 'required|array',
                 'detalles.*.plato_id' => 'required|integer',
-                'detalles.*.cantidad' => 'required|integer|min:1'
+                'detalles.*.cantidad' => 'required|integer|min:1',
+                'user_id' => 'nullable|exists:users,id',
+                'estado' => 'nullable|string'
             ]);
 
             // Eliminar detalles existentes
@@ -418,6 +422,12 @@ class AdminController extends Controller
             }
 
             $pedido->total = $total;
+            if ($request->has('user_id')) {
+                $pedido->user_id = $request->input('user_id');
+            }
+            if ($request->has('estado')) {
+                $pedido->estado = $request->input('estado');
+            }
             $pedido->save();
 
             if ($pedido->user) {
@@ -495,6 +505,7 @@ class AdminController extends Controller
             'success' => true,
             'pedido' => [
                 'id' => $pedido->id,
+                'user_id' => $pedido->user_id,
                 'total' => $pedido->total,
                 'estado' => $pedido->estado,
                 'detalles' => $detalles

@@ -12,8 +12,8 @@
 <body>
 
     <div class="auth-container" style="max-width: 600px;">
-        <div style="text-align: left; margin-bottom: 1rem;">
-            <a href="{{ route('home') }}" class="back-link" style="margin-top: 0;">← Volver al inicio</a>
+        <div class="auth-header-left">
+            <a href="{{ route('home') }}" class="back-link back-link-top">← Volver al inicio</a>
         </div>
 
         <h2>Únete a Nosotros</h2>
@@ -21,11 +21,11 @@
 
         <form id="registerForm" action="{{ route('register.post') }}" method="POST">
             @csrf
-            <div id="error-message" style="color: #e84c3d; background: rgba(232, 76, 61, 0.1); padding: 10px; border-radius: 5px; margin-bottom: 1rem; display: none; font-size: 0.9rem; border: 1px solid rgba(232, 76, 61, 0.3);"></div>
+            <div id="error-message" class="alert-box alert-error" style="display: none;"></div>
 
             @if ($errors->any())
-                <div style="color: #e84c3d; background: rgba(232, 76, 61, 0.1); padding: 10px; border-radius: 5px; margin-bottom: 1rem; font-size: 0.9rem; border: 1px solid rgba(232, 76, 61, 0.3);">
-                    <ul style="margin: 0; padding-left: 20px;">
+                <div class="alert-box alert-error">
+                    <ul class="alert-list">
                         @foreach ($errors->all() as $error)
                             <li>{{ $error }}</li>
                         @endforeach
@@ -36,7 +36,7 @@
             <div class="form-row">
                 <div class="form-group">
                     <label for="tipo_documento">Tipo de Documento</label>
-                    <select name="tipo_documento_id" id="tipo_documento" class="form-control" style="color: #fff; background: rgba(0,0,0,0.5);" required>
+                    <select name="tipo_documento_id" id="tipo_documento" class="form-control select-dark" required>
                         <option value="">Seleccione un tipo...</option>
                         @foreach ($tipo_documentos as $tipo)
                             <option value="{{ $tipo->id }}">{{ $tipo->sigla }} - {{ $tipo->nombre }}</option>
@@ -81,7 +81,7 @@
                 <div class="form-group">
                     <label for="password">Contraseña</label>
                     <input type="password" name="password" id="password" class="form-control" placeholder="••••••••" required>
-                    <small style="color: var(--text-muted); font-size: 0.75rem;">Debe tener al menos 8 caracteres, 1 mayúscula y 1 número.</small>
+                    <small class="text-sm-muted">Debe tener al menos 8 caracteres, 1 mayúscula y 1 número.</small>
                     <span id="passwordError" class="error-text hidden"></span>
                 </div>
                 <div class="form-group">
@@ -94,8 +94,8 @@
             <button type="submit" class="btn-primary">Crear Cuenta</button>
         </form>
 
-        <div style="margin-top: 2rem;">
-            <p style="margin-bottom: 0;">¿Ya tienes cuenta? <a href="{{ route('login') }}" style="color: var(--primary); text-decoration: none; font-weight: 500;">Inicia sesión aquí</a></p>
+        <div class="auth-footer">
+            <p>¿Ya tienes cuenta? <a href="{{ route('login') }}" class="auth-link">Inicia sesión aquí</a></p>
         </div>
     </div>
 

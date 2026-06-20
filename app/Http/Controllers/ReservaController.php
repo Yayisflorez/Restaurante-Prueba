@@ -103,257 +103,276 @@ class ReservaController extends Controller
         }
 
         $user = auth()->user();
+
+        // ─── Helper: convertir UTF-8 a Latin1 para FPDF ───────────────────────────
+        $enc = function ($str) {
+            return iconv('UTF-8', 'ISO-8859-1//TRANSLIT//IGNORE', (string) $str);
+        };
+
         $codigoReporte = 'RPT-' . strtoupper(substr(md5(uniqid(rand(), true)), 0, 8));
 
         $pdf = new \FPDF();
+        $pdf->SetMargins(15, 10, 15);
         $pdf->AddPage();
-        $pdf->SetAutoPageBreak(true, 15);
+        $pdf->SetAutoPageBreak(true, 20);
 
-        // ─── Paleta ───────────────────────────────────────────────────────────────
-        $gold = [194, 154, 38];
-        $goldL = [240, 220, 140];
-        $dark = [30, 30, 30];
-        $white = [255, 255, 255];
-        $gray = [110, 110, 110];
-        $lightBg = [250, 248, 242];
-        $lineSep = [220, 200, 120];
-        $cream = [253, 251, 245];
-        $cream2 = [246, 242, 230];
-        $blue = [30, 80, 160];
+        // ─── Paleta (Igual que en la web) ─────────────────────────────────────────
+        $gold    = [194, 149, 69]; // Color primario web
+        $goldD   = [140, 108, 20];
+        $goldL   = [240, 220, 140];
+        $goldXL  = [252, 246, 220];
+        $dark    = [28, 28, 35];
+        $charcoal= [55, 55, 65];
+        $white   = [255, 255, 255];
+        $offWhite= [250, 249, 245];
+        $gray    = [120, 120, 130];
+        $grayL   = [200, 200, 205];
+        $blueD   = [30, 60, 120];
+        $blueM   = [50, 90, 160];
+        $blueL   = [220, 230, 248];
+        $green   = [34, 110, 60];
+        $greenL  = [210, 240, 220];
+        $amber   = [170, 100, 10];
+        $amberL  = [255, 240, 200];
 
-        // ─── HEADER DEGRADADO ─────────────────────────────────────────────────────
-        for ($i = 0; $i < 60; $i++) {
-            $r = (int) (175 + ($i / 60) * 30);
-            $g = (int) (135 + ($i / 60) * 18);
-            $b = (int) (18 + ($i / 60) * 15);
-            $pdf->SetFillColor($r, $g, $b);
-            $pdf->Rect(0, $i, 210, 1, 'F');
+        $pageW = 210;
+        $margin = 15;
+        $contentW = $pageW - $margin * 2;   // 180mm
+
+        // ══════════════════════════════════════════════════════════════════════════
+        // HEADER: banda degradada oscura (dorado profundo → negro)
+        // ══════════════════════════════════════════════════════════════════════════
+        for ($i = 0; $i < 52; $i++) {
+            $t = $i / 51;
+            $r = (int)(28  + $t * (28 - 28));
+            $g = (int)(28  + $t * (28 - 28));
+            $b = (int)(35  + $t * (35 - 35));
+            $rr = (int)(140 * (1 - $t) + 28 * $t);
+            $gg = (int)(108 * (1 - $t) + 28 * $t);
+            $bb = (int)(20  * (1 - $t) + 35 * $t);
+            $pdf->SetFillColor($rr, $gg, $bb);
+            $pdf->Rect(0, $i, $pageW, 1, 'F');
         }
 
-        // ─── LOGO con proporciones correctas ──────────────────────────────────────
+        for ($i = 52; $i < 56; $i++) {
+            $t = ($i - 52) / 3;
+            $r = (int)(255 * (1 - $t) + $goldL[0] * $t);
+            $g = (int)(220 * (1 - $t) + $goldL[1] * $t);
+            $b = (int)(80  * (1 - $t) + $goldL[2] * $t);
+            $pdf->SetFillColor($r, $g, $b);
+            $pdf->Rect(0, $i, $pageW, 1, 'F');
+        }
+
+        $pdf->SetFillColor($offWhite[0], $offWhite[1], $offWhite[2]);
+        $pdf->Rect(0, 56, $pageW, 250, 'F');
+
+        // LOGO
         $logoPath = public_path('img/LogoRestaurant.png');
         if (file_exists($logoPath)) {
             $logoInfo = getimagesize($logoPath);
             if ($logoInfo) {
                 $ratio = $logoInfo[1] / $logoInfo[0];
-                $logoW = 38;
+                $logoW = 30;
                 $logoH = $logoW * $ratio;
-                $logoX = (210 - $logoW) / 2;
-                $logoY = max(3, (58 - $logoH) / 2);
+                $logoX = $margin;
+                $logoY = max(4, (50 - $logoH) / 2);
                 $pdf->Image($logoPath, $logoX, $logoY, $logoW, $logoH);
             }
         }
 
-        // ─── Título ───────────────────────────────────────────────────────────────
-        $pdf->SetY(43);
-        $pdf->SetTextColor($white[0], $white[1], $white[2]);
-        $pdf->SetFont('Arial', 'B', 14);
-        $pdf->Cell(0, 8, 'COMPROBANTE DE RESERVA', 0, 1, 'C');
+        $pdf->SetXY($margin + 34, 10);
+        $pdf->SetTextColor($goldL[0], $goldL[1], $goldL[2]);
+        $pdf->SetFont('Times', 'BI', 22);
+        $pdf->Cell(0, 10, $enc('Sabor & Tradición'), 0, 1, 'L');
 
-        // Línea dorada decorativa
+        $pdf->SetXY($margin + 34, 21);
+        $pdf->SetTextColor($grayL[0], $grayL[1], $grayL[2]);
+        $pdf->SetFont('Arial', '', 8);
+        $pdf->Cell(0, 5, $enc('Restaurante de alta cocina  |  Comprobante oficial de reserva'), 0, 1, 'L');
+
+        $pdf->SetXY(0, 9);
+        $pdf->SetTextColor($goldXL[0], $goldXL[1], $goldXL[2]);
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell($pageW - $margin, 6, $enc('RESERVA  #' . $reserva->id), 0, 1, 'R');
+
+        $pdf->SetXY(0, 16);
+        $pdf->SetTextColor($grayL[0], $grayL[1], $grayL[2]);
+        $pdf->SetFont('Arial', '', 7.5);
+        $pdf->Cell($pageW - $margin, 5, $enc('Reporte: ' . $codigoReporte), 0, 1, 'R');
+
+        $pdf->SetXY(0, 23);
+        $pdf->SetFont('Arial', '', 7.5);
+        $pdf->Cell($pageW - $margin, 5, $enc('Emitido: ' . now()->format('d/m/Y H:i:s')), 0, 1, 'R');
+
+        // DATOS DEL CLIENTE
+        $secY = 63;
+        $pdf->SetFillColor($blueD[0], $blueD[1], $blueD[2]);
+        $pdf->Rect($margin, $secY, $contentW, 9, 'F');
         $pdf->SetFillColor($goldL[0], $goldL[1], $goldL[2]);
-        $pdf->Rect(0, 60, 210, 2.5, 'F');
-
-        // ─── FONDO CUERPO ─────────────────────────────────────────────────────────
-        $pdf->SetFillColor($lightBg[0], $lightBg[1], $lightBg[2]);
-        $pdf->Rect(0, 62, 210, 236, 'F');
-
-        // Código de reporte
-        $pdf->SetY(66);
-        $pdf->SetTextColor($gray[0], $gray[1], $gray[2]);
-        $pdf->SetFont('Arial', 'I', 8);
-        $pdf->Cell(0, 5, 'Reporte: ' . $codigoReporte, 0, 1, 'C');
-
-        // ─── TARJETA DATOS DEL USUARIO ────────────────────────────────────────────
-        $cardX = 20;
-        $userCardY = 76;
-        $cardW = 170;
-        $labelW = 58;
-
-        $userInfo = [
-            ['Nombre', ($user->name ?? '') . ' ' . ($user->lastname ?? '')],
-            ['Cedula / Documento', $user->numero_documento ?? 'No registrado'],
-            ['Correo', $user->email ?? 'No registrado'],
-        ];
-
-        $rowH = 13;
-        $userCardH = count($userInfo) * $rowH + 14;
-
-        // Sombra
-        $pdf->SetFillColor(195, 182, 148);
-        $pdf->Rect($cardX + 3, $userCardY + 3, $cardW, $userCardH, 'F');
-        // Fondo blanco
-        $pdf->SetFillColor(255, 255, 255);
-        $pdf->Rect($cardX, $userCardY, $cardW, $userCardH, 'F');
-        // Borde azul
-        $pdf->SetDrawColor($blue[0], $blue[1], $blue[2]);
-        $pdf->SetLineWidth(0.9);
-        $pdf->Rect($cardX, $userCardY, $cardW, $userCardH, 'D');
-        $pdf->SetLineWidth(0.2);
-
-        // Barra título tarjeta usuario
-        $pdf->SetFillColor($blue[0], $blue[1], $blue[2]);
-        $pdf->Rect($cardX, $userCardY, $cardW, 13, 'F');
-        $pdf->SetFillColor(100, 140, 210);
-        $pdf->Rect($cardX, $userCardY + 11.5, $cardW, 1, 'F');
+        $pdf->Rect($margin, $secY, 3, 9, 'F');
 
         $pdf->SetTextColor($white[0], $white[1], $white[2]);
-        $pdf->SetFont('Arial', 'B', 11);
-        $pdf->SetXY($cardX, $userCardY);
-        $pdf->Cell($cardW, 13, 'DATOS DEL CLIENTE', 0, 1, 'C');
+        $pdf->SetFont('Arial', 'B', 9);
+        $pdf->SetXY($margin + 7, $secY + 1.5);
+        $pdf->Cell($contentW - 7, 6, $enc('DATOS DEL CLIENTE'), 0, 1, 'L');
 
-        // Filas de usuario
-        $startY = $userCardY + 14;
-        foreach ($userInfo as $i => $row) {
-            $y = $startY + $i * $rowH;
+        $bodyH1 = 28;
+        $pdf->SetFillColor($blueL[0], $blueL[1], $blueL[2]);
+        $pdf->Rect($margin, $secY + 9, $contentW, $bodyH1, 'F');
+        $pdf->SetFillColor($blueM[0], $blueM[1], $blueM[2]);
+        $pdf->Rect($margin, $secY + 9, 0.8, $bodyH1, 'F');
 
-            $pdf->SetFillColor(...($i % 2 === 0 ? $cream : $cream2));
-            $pdf->Rect($cardX + 1, $y, $cardW - 2, $rowH - 1, 'F');
-
-            $pdf->SetDrawColor($lineSep[0], $lineSep[1], $lineSep[2]);
-            $pdf->SetLineWidth(0.15);
-            $pdf->Line($cardX + 1, $y + $rowH - 1, $cardX + $cardW - 1, $y + $rowH - 1);
-
-            $pdf->SetDrawColor(100, 140, 210);
-            $pdf->Line($cardX + $labelW + 6, $y + 2, $cardX + $labelW + 6, $y + $rowH - 3);
-
-            $pdf->SetTextColor($blue[0], $blue[1], $blue[2]);
-            $pdf->SetFont('Arial', 'B', 9);
-            $pdf->SetXY($cardX + 6, $y + 3.5);
-            $pdf->Cell($labelW, 5, $row[0] . ':', 0, 0, 'L');
-
-            $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
-            $pdf->SetFont('Arial', '', 10);
-            $pdf->SetXY($cardX + $labelW + 10, $y + 3.5);
-            $pdf->Cell($cardW - $labelW - 14, 5, $row[1], 0, 0, 'L');
-        }
-
-        // ─── TARJETA DETALLE DE LA RESERVA ────────────────────────────────────────
-        $cardY = $userCardY + $userCardH + 10;
-
-        $info = [
-            ['Codigo de Reserva', $reserva->codigo_referencia],
-            ['Fecha', $reserva->fecha],
-            ['Hora', $reserva->hora],
-            ['Mesa(s)', $reserva->mesa],
-            ['Personas', $reserva->personas],
-            ['Zona', ucfirst($reserva->zona)],
+        $colWUser = $contentW / 3;
+        $userData = [
+            ['NOMBRE', $enc(trim(($user->name ?? '') . ' ' . ($user->lastname ?? '')))],
+            ['DOCUMENTO', $enc($user->numero_documento ?? 'No registrado')],
+            ['CORREO', $enc($user->email ?? 'No registrado')],
         ];
-        if ($reserva->notas) {
-            $info[] = ['Notas', $reserva->notas];
+
+        foreach ($userData as $idx => $ud) {
+            $ux = $margin + $idx * $colWUser + 5;
+            $pdf->SetTextColor($blueM[0], $blueM[1], $blueM[2]);
+            $pdf->SetFont('Arial', 'B', 6.5);
+            $pdf->SetXY($ux, $secY + 12);
+            $pdf->Cell($colWUser - 8, 4, $ud[0], 0, 1, 'L');
+            $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->SetXY($ux, $secY + 17);
+            $pdf->Cell($colWUser - 8, 6, $ud[1], 0, 1, 'L');
+            if ($idx < 2) {
+                $pdf->SetDrawColor($blueM[0], $blueM[1], $blueM[2]);
+                $pdf->SetLineWidth(0.3);
+                $pdf->Line($margin + ($idx + 1) * $colWUser, $secY + 11, $margin + ($idx + 1) * $colWUser, $secY + 9 + $bodyH1 - 2);
+            }
         }
 
-        $rowH = 14;
-        $cardH = count($info) * $rowH + 14;
+        // INFORMACION DE LA RESERVA
+        $secY2 = $secY + 9 + $bodyH1 + 6;
+        $pdf->SetFillColor($goldD[0], $goldD[1], $goldD[2]);
+        $pdf->Rect($margin, $secY2, $contentW, 9, 'F');
+        $pdf->SetFillColor($white[0], $white[1], $white[2]);
+        $pdf->Rect($margin, $secY2, 3, 9, 'F');
 
-        // Sombra
-        $pdf->SetFillColor(195, 182, 148);
-        $pdf->Rect($cardX + 3, $cardY + 3, $cardW, $cardH, 'F');
-        // Fondo blanco
-        $pdf->SetFillColor(255, 255, 255);
-        $pdf->Rect($cardX, $cardY, $cardW, $cardH, 'F');
-        // Borde dorado
-        $pdf->SetDrawColor($gold[0], $gold[1], $gold[2]);
-        $pdf->SetLineWidth(0.9);
-        $pdf->Rect($cardX, $cardY, $cardW, $cardH, 'D');
-        $pdf->SetLineWidth(0.2);
+        $pdf->SetTextColor($white[0], $white[1], $white[2]);
+        $pdf->SetFont('Arial', 'B', 9);
+        $pdf->SetXY($margin + 7, $secY2 + 1.5);
+        $pdf->Cell($contentW - 7, 6, $enc('DETALLE DE LA RESERVA'), 0, 1, 'L');
 
-        // Barra título tarjeta
+        $bodyH2 = 42;
+        $pdf->SetFillColor($goldXL[0], $goldXL[1], $goldXL[2]);
+        $pdf->Rect($margin, $secY2 + 9, $contentW, $bodyH2, 'F');
         $pdf->SetFillColor($gold[0], $gold[1], $gold[2]);
-        $pdf->Rect($cardX, $cardY, $cardW, 13, 'F');
+        $pdf->Rect($margin, $secY2 + 9, 0.8, $bodyH2, 'F');
 
-        $pdf->SetFillColor($goldL[0], $goldL[1], $goldL[2]);
-        $pdf->Rect($cardX, $cardY + 11.5, $cardW, 1, 'F');
+        $infoGrid = [
+            ['CODIGO',       $enc($reserva->codigo_referencia)],
+            ['FECHA',        $enc(\Carbon\Carbon::parse($reserva->fecha)->format('d/m/Y'))],
+            ['HORA',         $enc($reserva->hora)],
+            ['ZONA',         $enc(ucfirst($reserva->zona))],
+            ['MESA(S)',      $enc($reserva->mesa)],
+            ['PERSONAS',     $enc($reserva->personas . ' persona(s)')],
+        ];
 
-        $pdf->SetTextColor($white[0], $white[1], $white[2]);
-        $pdf->SetFont('Arial', 'B', 11);
-        $pdf->SetXY($cardX, $cardY);
-        $pdf->Cell($cardW, 13, 'DETALLE DE LA RESERVA', 0, 1, 'C');
+        $colWInfo = $contentW / 3;
+        foreach ($infoGrid as $idx => $ig) {
+            $col = $idx % 3;
+            $fila = (int)($idx / 3);
+            $ix = $margin + $col * $colWInfo + 5;
+            $iy = $secY2 + 12 + $fila * 20;
 
-        // ─── FILAS ────────────────────────────────────────────────────────────────
-        $startY = $cardY + 14;
-
-        foreach ($info as $i => $row) {
-            $y = $startY + $i * $rowH;
-
-            $pdf->SetFillColor(...($i % 2 === 0 ? $cream : $cream2));
-            $pdf->Rect($cardX + 1, $y, $cardW - 2, $rowH - 1, 'F');
-
-            $pdf->SetDrawColor($lineSep[0], $lineSep[1], $lineSep[2]);
-            $pdf->SetLineWidth(0.15);
-            $pdf->Line($cardX + 1, $y + $rowH - 1, $cardX + $cardW - 1, $y + $rowH - 1);
-
-            $pdf->SetDrawColor($goldL[0], $goldL[1], $goldL[2]);
-            $pdf->Line($cardX + $labelW + 6, $y + 2, $cardX + $labelW + 6, $y + $rowH - 3);
-
-            $pdf->SetTextColor($gold[0], $gold[1], $gold[2]);
-            $pdf->SetFont('Arial', 'B', 9);
-            $pdf->SetXY($cardX + 6, $y + 4);
-            $pdf->Cell($labelW, 5, $row[0] . ':', 0, 0, 'L');
+            $pdf->SetTextColor($goldD[0], $goldD[1], $goldD[2]);
+            $pdf->SetFont('Arial', 'B', 6.5);
+            $pdf->SetXY($ix, $iy);
+            $pdf->Cell($colWInfo - 8, 4, $ig[0], 0, 1, 'L');
 
             $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
-            $pdf->SetFont('Arial', '', 10);
-            $pdf->SetXY($cardX + $labelW + 10, $y + 4);
-            $pdf->Cell($cardW - $labelW - 14, 5, $row[1], 0, 0, 'L');
+            $pdf->SetFont('Arial', 'B', 9.5);
+            $pdf->SetXY($ix, $iy + 4);
+            $pdf->Cell($colWInfo - 8, 6, $ig[1], 0, 1, 'L');
+
+            if ($col < 2) {
+                $pdf->SetDrawColor($gold[0], $gold[1], $gold[2]);
+                $pdf->SetLineWidth(0.3);
+                $pdf->Line($margin + ($col + 1) * $colWInfo, $secY2 + 10, $margin + ($col + 1) * $colWInfo, $secY2 + 9 + $bodyH2 - 1);
+            }
+            if ($fila === 0 && $col === 0) {
+                $pdf->SetDrawColor($goldL[0], $goldL[1], $goldL[2]);
+                $pdf->SetLineWidth(0.3);
+                $pdf->Line($margin + 2, $secY2 + 9 + 20, $margin + $contentW - 2, $secY2 + 9 + 20);
+            }
         }
 
-        // ─── BADGE ESTADO ─────────────────────────────────────────────────────────
-        $badgeY = $cardY + $cardH + 10;
+        $secY3 = $secY2 + 9 + $bodyH2 + 7;
+
+        // NOTAS ADICIONALES (Opcional)
+        if (!empty($reserva->notas)) {
+            $pdf->SetFillColor($charcoal[0], $charcoal[1], $charcoal[2]);
+            $pdf->Rect($margin, $secY3, $contentW, 8, 'F');
+            $pdf->SetFillColor($gold[0], $gold[1], $gold[2]);
+            $pdf->Rect($margin, $secY3, 3, 8, 'F');
+
+            $pdf->SetTextColor($goldL[0], $goldL[1], $goldL[2]);
+            $pdf->SetFont('Arial', 'B', 8);
+            $pdf->SetXY($margin + 7, $secY3 + 1.5);
+            $pdf->Cell($contentW - 7, 5, $enc('NOTAS ADICIONALES'), 0, 1, 'L');
+
+            $pdf->SetFillColor(242, 240, 233);
+            $pdf->Rect($margin, $secY3 + 8, $contentW, 16, 'F');
+            $pdf->SetTextColor($dark[0], $dark[1], $dark[2]);
+            $pdf->SetFont('Arial', 'I', 9);
+            $pdf->SetXY($margin + 5, $secY3 + 10);
+            $pdf->MultiCell($contentW - 10, 5, $enc($reserva->notas), 0, 'L');
+
+            $secY3 += 32;
+        }
+
+        // BADGE DE ESTADO
+        $badgeY = $secY3 + 10;
         $estado = strtolower($reserva->estado);
 
-        if ($estado === 'confirmada') {
-            $badgeColor = [34, 120, 34];
-            $badgeColorL = [180, 230, 180];
-            $icono = 'CONFIRMADA';
-        } elseif ($estado === 'cancelada') {
-            $badgeColor = [160, 35, 35];
-            $badgeColorL = [230, 180, 180];
-            $icono = 'CANCELADA';
-        } else {
-            $badgeColor = $gold;
-            $badgeColorL = $goldL;
-            $icono = 'PENDIENTE';
-        }
+        $stateMap = [
+            'confirmada' => [[34, 120, 60],  [210, 245, 220], 'CONFIRMADA'],
+            'cancelada'  => [[160, 35, 35],  [245, 210, 210], 'CANCELADA'],
+        ];
+        [$badgeColor, $badgeColorL, $badgeText] = $stateMap[$estado] ?? [$amber, $amberL, 'PENDIENTE'];
 
-        $pdf->SetFillColor(150, 140, 110);
-        $pdf->Rect(63, $badgeY + 2, 86, 14, 'F');
+        $bw = 70; $bh = 12;
+        $bx = ($pageW - $bw) / 2;
 
+        $pdf->SetFillColor(180, 170, 150);
+        $pdf->Rect($bx + 2, $badgeY + 2, $bw, $bh, 'F');
         $pdf->SetFillColor($badgeColor[0], $badgeColor[1], $badgeColor[2]);
-        $pdf->Rect(60, $badgeY, 90, 14, 'F');
-
+        $pdf->Rect($bx, $badgeY, $bw, $bh, 'F');
         $pdf->SetFillColor($badgeColorL[0], $badgeColorL[1], $badgeColorL[2]);
-        $pdf->Rect(60, $badgeY, 90, 3, 'F');
-
+        $pdf->Rect($bx, $badgeY, $bw, 3, 'F');
         $pdf->SetTextColor($white[0], $white[1], $white[2]);
-        $pdf->SetFont('Arial', 'B', 11);
-        $pdf->SetXY(60, $badgeY + 3);
-        $pdf->Cell(90, 8, 'ESTADO: ' . $icono, 0, 1, 'C');
+        $pdf->SetFont('Arial', 'B', 9);
+        $pdf->SetXY($bx, $badgeY + 2.5);
+        $pdf->Cell($bw, 7, $enc('ESTADO: ' . $badgeText), 0, 0, 'C');
 
         $pdf->SetTextColor($gray[0], $gray[1], $gray[2]);
         $pdf->SetFont('Arial', 'I', 7);
-        $pdf->SetXY(60, $badgeY + 15);
-        $pdf->Cell(90, 4, 'Estado actual de su reserva', 0, 1, 'C');
+        $pdf->SetXY(0, $badgeY + $bh + 4);
+        $pdf->Cell($pageW, 4, $enc('Estado actual de su reserva'), 0, 0, 'C');
 
-        // ─── FOOTER ───────────────────────────────────────────────────────────────
-        $footerY = $pdf->GetPageHeight() - 30;
-        $pdf->SetFillColor($gold[0], $gold[1], $gold[2]);
-        $pdf->Rect(0, $footerY, 210, 2, 'F');
-
+        // FOOTER
+        $pdf->SetAutoPageBreak(false); // Evitar salto de página al imprimir el footer
+        $footerY = $pdf->GetPageHeight() - 22;
+        $pdf->SetDrawColor($gold[0], $gold[1], $gold[2]);
+        $pdf->SetLineWidth(0.6);
+        $pdf->Line($margin, $footerY, $pageW - $margin, $footerY);
         $pdf->SetFillColor($dark[0], $dark[1], $dark[2]);
-        $pdf->Rect(0, $footerY + 2, 210, 30, 'F');
-
-        $pdf->SetFillColor($goldL[0], $goldL[1], $goldL[2]);
-        $pdf->Rect(30, $footerY + 10, 150, 0.5, 'F');
+        $pdf->Rect(0, $footerY + 1, $pageW, 25, 'F');
 
         $pdf->SetTextColor($goldL[0], $goldL[1], $goldL[2]);
-        $pdf->SetFont('Arial', 'B', 9);
-        $pdf->SetXY(0, $footerY + 4);
-        $pdf->Cell(0, 6, 'Restaurante - Gracias por su preferencia', 0, 1, 'C');
+        $pdf->SetFont('Times', 'I', 10);
+        $pdf->SetXY(0, $footerY + 5);
+        $pdf->Cell($pageW, 6, $enc('Sabor & Tradición  —  Gracias por su preferencia'), 0, 1, 'C');
 
         $pdf->SetTextColor($gray[0], $gray[1], $gray[2]);
-        $pdf->SetFont('Arial', '', 7);
-        $pdf->SetXY(0, $footerY + 11);
-        $pdf->Cell(0, 5, 'Generado el: ' . now()->format('d/m/Y H:i:s') . '   |   Documento oficial', 0, 1, 'C');
+        $pdf->SetFont('Arial', '', 6.5);
+        $pdf->SetXY(0, $footerY + 12);
+        $pdf->Cell($pageW, 4, $enc('Generado el: ' . now()->format('d/m/Y H:i:s') . '   |   Documento oficial  |  ' . $codigoReporte), 0, 1, 'C');
 
         $pdf->Output('D', 'reserva_' . $reserva->codigo_referencia . '.pdf');
     }

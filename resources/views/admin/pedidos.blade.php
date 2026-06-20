@@ -113,6 +113,25 @@
                     <h3 class="modal-title" style="margin-bottom: 1.5rem; font-size: 1.4rem;">Pedido actual</h3>
                     <input type="hidden" id="edit-pedido-id">
                     
+                    <div class="form-group">
+                        <label for="edit-pedido-user" style="color: #aaa; font-size: 0.9rem;">Cliente</label>
+                        <select id="edit-pedido-user" class="form-control" style="margin-bottom: 0.5rem; width: 100%;">
+                            @foreach ($users as $user)
+                                <option value="{{ $user->id }}">{{ $user->name }} {{ $user->lastname }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-pedido-estado" style="color: #aaa; font-size: 0.9rem;">Estado</label>
+                        <select id="edit-pedido-estado" class="form-control" style="margin-bottom: 1rem; width: 100%;">
+                            <option value="pendiente">Pendiente</option>
+                            <option value="en_proceso">En Proceso</option>
+                            <option value="completado">Completado</option>
+                            <option value="cancelado">Cancelado</option>
+                        </select>
+                    </div>
+                    
                     <div id="edit-pedido-detalles" style="flex: 1; overflow-y: auto; margin-bottom: 1.5rem;">
                         <!-- Detalles dinámicos -->
                     </div>
@@ -131,136 +150,7 @@
 @endsection
 
 @section('scripts')
-    <style>
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.7);
-            z-index: 9999;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-overlay.hidden {
-            display: none;
-        }
-        .modal-overlay:not(.hidden) {
-            display: flex;
-        }
-        .modal-content {
-            background: var(--bg-sidebar);
-            padding: 2rem;
-            border-radius: 16px;
-            position: relative;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .close-modal {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            background: none;
-            border: none;
-            color: #aaa;
-            font-size: 2rem;
-            cursor: pointer;
-        }
-        .modal-title {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.8rem;
-            margin-bottom: 1.5rem;
-            color: var(--admin-text);
-        }
-        .form-group {
-            margin-bottom: 1rem;
-        }
-        .pedidos-grid-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 1rem;
-        }
-        .plato-card {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px;
-            padding: 1rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
-        }
-        .plato-card:hover { background: rgba(194,149,69,0.1); border-color: rgba(194,149,69,0.5); transform: translateY(-3px); }
-        .plato-card-nombre { font-weight: 700; color: #f5f5f5; margin-bottom: 0.5rem; font-size: 1.1rem; }
-        .plato-card-precio { color: var(--primary); font-weight: 600; font-size: 1.1rem; }
-        .plato-card.agotado { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
-        .tag-agotado-float {
-            position: absolute; top: 10px; right: 10px;
-            background: #e74c3c; color: #fff; font-size: 0.7rem; font-weight: 700;
-            padding: 0.2rem 0.6rem; border-radius: 4px;
-        }
-        .tag-disponible-float {
-            position: absolute; top: 10px; right: 10px;
-            background: rgba(46,204,113,0.2); color: #2ecc71; font-size: 0.7rem; font-weight: 700;
-            padding: 0.2rem 0.6rem; border-radius: 4px;
-        }
-        .detalle-card {
-            background: rgba(255,255,255,0.03);
-            border-radius: 8px;
-            padding: 0.8rem;
-            position: relative;
-            margin-bottom: 0.8rem;
-            border-left: 3px solid var(--primary);
-        }
-        .detalle-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.8rem;
-        }
-        .detalle-nombre {
-            font-weight: 700;
-            color: var(--admin-text);
-        }
-        .detalle-controls {
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-        }
-        .btn-cantidad {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: var(--admin-text);
-            width: 30px;
-            height: 30px;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-        .btn-cantidad:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        .cantidad-input {
-            width: 40px;
-            text-align: center;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: var(--admin-text);
-            border-radius: 6px;
-        }
-        .btn-remove {
-            position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
-            background: rgba(231,76,60,0.2);
-            border: none;
-            color: #e74c3c;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 1.2rem;
-        }
-    </style>
+
     <script>
         let platosCatalogo = [];
         let detallesEdicion = {};
@@ -338,6 +228,8 @@
                 .then(data => {
                     if (data.success) {
                         detallesEdicion = {};
+                        document.getElementById('edit-pedido-user').value = data.pedido.user_id;
+                        document.getElementById('edit-pedido-estado').value = data.pedido.estado;
                         data.pedido.detalles.forEach(det => {
                             detallesEdicion[det.plato_id] = det.cantidad;
                         });
@@ -545,6 +437,8 @@
 
         function guardarEdicionPedidoAdmin() {
             const pedidoId = document.getElementById('edit-pedido-id').value;
+            const userId = document.getElementById('edit-pedido-user').value;
+            const estado = document.getElementById('edit-pedido-estado').value;
             const detalles = Object.keys(detallesEdicion).map(platoId => ({
                 plato_id: parseInt(platoId),
                 cantidad: detallesEdicion[platoId]
@@ -556,7 +450,7 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
                 },
-                body: JSON.stringify({ detalles })
+                body: JSON.stringify({ detalles, user_id: userId, estado: estado })
             })
             .then(res => res.json())
             .then(data => {
