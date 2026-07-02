@@ -84,6 +84,30 @@
                 });
             @endif
         });
+
+        // Polling para Actualizaciones en Tiempo Real
+        let lastUpdateCheck = new Date().toISOString();
+        setInterval(() => {
+            // Verificar si hay alguna ventana modal (ej. edición) abierta para no interrumpir al administrador
+            const openModals = document.querySelectorAll('.modal-overlay:not(.hidden)');
+            if (openModals.length > 0) return;
+            
+            // Tampoco actualizar si el usuario está interactuando con algún input de búsqueda
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+
+            fetch(`/api/updates/check?last_check=${lastUpdateCheck}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.has_updates) {
+                        lastUpdateCheck = data.timestamp;
+                        // Actualizar la página para reflejar los cambios
+                        location.reload(); 
+                    } else if (data.timestamp) {
+                        lastUpdateCheck = data.timestamp;
+                    }
+                })
+                .catch(err => console.error("Error checking updates:", err));
+        }, 15000); // 15 segundos
     </script>
     @yield('scripts')
 </body>

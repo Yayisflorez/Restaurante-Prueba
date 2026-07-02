@@ -470,7 +470,7 @@
                 } else {
                     Swal.fire({
                         title: 'Error',
-                        text: 'Error al actualizar: ' + data.message,
+                        text: 'Error al actualizar: ' + (data.message || 'Error desconocido'),
                         icon: 'error',
                         background: '#1a1a1a',
                         color: '#f5f5f5',
@@ -478,6 +478,18 @@
                         customClass: { popup: 'swal-on-top' }
                     });
                 }
+            })
+            .catch(error => {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'Hubo un problema de conexión o del servidor al guardar.',
+                    icon: 'error',
+                    background: '#1a1a1a',
+                    color: '#f5f5f5',
+                    confirmButtonColor: '#c29545',
+                    customClass: { popup: 'swal-on-top' }
+                });
+                console.error("Error en guardarEdicionPedidoAdmin:", error);
             });
         }
 

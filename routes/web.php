@@ -58,3 +58,25 @@ Route::middleware(['auth', \App\Http\Middleware\AdminMiddleware::class])->group(
     Route::put('/admin/pedidos/{id}', [AdminController::class, 'updatePedido'])->name('admin.pedidos.update');
     Route::delete('/admin/pedidos/{id}', [AdminController::class, 'destroyPedido'])->name('admin.pedidos.destroy');
 });
+
+Route::get('/api/updates/check', function (\Illuminate\Http\Request $request) {
+    $lastCheck = $request->query('last_check');
+    if (!$lastCheck) {
+        return response()->json(['has_updates' => false, 'timestamp' => now()->toIso8601String()]);
+    }
+    
+    try {
+        $lastCheckDate = \Carbon\Carbon::parse($lastCheck);
+        $hasPedidoUpdates = \App\Models\Pedido::where('updated_at', '>', $lastCheckDate)->exists();
+        $hasReservaUpdates = \App\Models\Reserva::where('updated_at', '>', $lastCheckDate)->exists();
+        $hasPlatoUpdates = \App\Models\Plato::where('updated_at', '>', $lastCheckDate)->exists();
+        $hasUserUpdates = \App\Models\User::where('updated_at', '>', $lastCheckDate)->exists();
+        
+        return response()->json([
+            'has_updates' => $hasPedidoUpdates || $hasReservaUpdates || $hasPlatoUpdates || $hasUserUpdates,
+            'timestamp' => now()->toIso8601String()
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['has_updates' => false, 'timestamp' => now()->toIso8601String()]);
+    }
+})->name('api.updates.check');

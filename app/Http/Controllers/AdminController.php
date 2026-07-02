@@ -431,13 +431,17 @@ class AdminController extends Controller
             $pedido->save();
 
             if ($pedido->user) {
-                \App\Services\MailerService::sendEmail(
-                    $pedido->user->email,
-                    $pedido->user->name,
-                    'Pedido Modificado - Sabor & Tradición',
-                    'Cambios en tu pedido',
-                    "Hola {$pedido->user->name},<br><br>Tu pedido con ID #{$pedido->id} ha sido actualizado. El nuevo total a pagar es de <b>$" . number_format($pedido->total, 2) . "</b>."
-                );
+                try {
+                    \App\Services\MailerService::sendEmail(
+                        $pedido->user->email,
+                        $pedido->user->name,
+                        'Pedido Modificado - Sabor & Tradición',
+                        'Cambios en tu pedido',
+                        "Hola {$pedido->user->name},<br><br>Tu pedido con ID #{$pedido->id} ha sido actualizado. El nuevo total a pagar es de <b>$" . number_format($pedido->total, 2) . "</b>."
+                    );
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error("Error al enviar correo: " . $e->getMessage());
+                }
             }
 
             return response()->json([

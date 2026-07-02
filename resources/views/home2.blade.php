@@ -762,5 +762,27 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{{ asset('js/loader.js') }}?v={{ time() }}"></script>
     <script src="{{ asset('js/ScriptHome2.js') }}?v={{ time() }}"></script>
+    <script>
+        // Polling para Actualizaciones en Tiempo Real (Usuario)
+        let lastUpdateCheck = new Date().toISOString();
+        setInterval(() => {
+            const openModals = document.querySelectorAll('.modal-overlay:not(.hidden)');
+            if (openModals.length > 0) return;
+            
+            if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
+
+            fetch(`/api/updates/check?last_check=${lastUpdateCheck}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.has_updates) {
+                        lastUpdateCheck = data.timestamp;
+                        location.reload(); 
+                    } else if (data.timestamp) {
+                        lastUpdateCheck = data.timestamp;
+                    }
+                })
+                .catch(err => console.error("Error checking updates:", err));
+        }, 15000);
+    </script>
 </body>
 </html>
